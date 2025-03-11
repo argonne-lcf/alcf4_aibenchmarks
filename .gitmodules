@@ -1,0 +1,3 @@
+[submodule "ViT/Megatron-DeepSpeed_ViT"]
+	path = ViT/Megatron-DeepSpeed_ViT
+	url = https://github.com/Eugene29/Megatron-DeepSpeed_ViT.git
