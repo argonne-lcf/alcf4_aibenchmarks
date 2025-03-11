@@ -1,5 +1,4 @@
-
-# AICommsBench (AI collective communications benchmark)
+# 1T Large Language Model Training
 
 ## Overview 
 

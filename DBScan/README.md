@@ -1,5 +1,4 @@
-
-# AICommsBench (AI collective communications benchmark)
+# DBScan
 
 ## Overview 
 
@@ -8,5 +7,6 @@
 ## FOM
 
 ## Steps to Run
+
 
 
