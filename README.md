@@ -5,3 +5,4 @@ This is a repository of AI benchmarks used for ALCF-4. The list of benchmarks in
 2) LLM Training and Inference
 3) Vision Transformer
 4) DBScan
+5) DLIO - I/O benchmark for AI applications
