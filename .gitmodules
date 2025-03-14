@@ -4,3 +4,6 @@
 [submodule "LLM/Training/Megatron-DeepSpeed"]
 	path = LLM/Training/Megatron-DeepSpeed
 	url = https://github.com/argonne-lcf/Megatron-DeepSpeed.git
+[submodule "IO/dlio_benchmark"]
+	path = IO/dlio_benchmark
+	url = https://github.com/argonne-lcf/dlio_benchmark.git
