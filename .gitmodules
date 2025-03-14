@@ -7,3 +7,6 @@
 [submodule "IO/dlio_benchmark"]
 	path = IO/dlio_benchmark
 	url = https://github.com/argonne-lcf/dlio_benchmark.git
+[submodule "DLIO/dlio_benchmark"]
+	path = DLIO/dlio_benchmark
+	url = https://github.com/argonne-lcf/dlio_benchmark.git
