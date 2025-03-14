@@ -32,7 +32,7 @@ The first term is from the computation, and the second time is from reduction of
 The FOM can be defined as the ratio between the complexity of the problem and the time to solution. 
 
 $$
-    \text{FOM} = \frac{(6sd^2 + s^2d)bL}{T}\,.
+\text{FOM} = \frac{(6sd^2 + s^2d)bL}{T}\,.
 $$
 Notice that here we only consider the computation part in the complexity. The communication comes into play only because we cannot
 
