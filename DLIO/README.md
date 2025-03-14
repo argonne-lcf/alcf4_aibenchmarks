@@ -1,4 +1,4 @@
-..# Deep Learning I/O benchmarks
+# Deep Learning I/O benchmarks
 
 ## Overview 
 Deep Learning I/O (DLIO) Benchmark is a benchmark suite aiming at emulating the I/O pattern and behavior of deep learning applications. The benchmark is delivered as an executable that can be configured for various deep learning workloads. It uses a modular design to incorporate different data loaders, data formats, dataset organizations, and use training configuration parameters similar to the actual deep learning applications. It is able to represent the I/O process of a broad spectrum of deep leanrning applications.
