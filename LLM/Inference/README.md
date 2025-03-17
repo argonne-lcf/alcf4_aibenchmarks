@@ -6,11 +6,6 @@ Throughput is a key indicator of a hardware’s processing efficiency. It provid
 
 ## Code Access
 
-## FOM
-
-
-## Run Inference FOM
-
 ## First time Setup
 On Aurora, the steps to set up the required software environment are listed below. vLLM is used as the inference serving engine with Ray as the backend to enable multi-node runs.
 ```bash
@@ -32,6 +27,9 @@ cd alcf4_aibenchmarks/LLM/Inference
 
 python benchmark_fom.py --batch-size=32 --tensor-parallel-size=1 --input-len=32--output-len=32 --model="meta-llama/Llama-2-7b-hf" --dtype="float16" --trust-remote-code
 ```
+## FOM
+
+
 
 ## Run FOMs
 
