@@ -1,5 +1,9 @@
 ## Overview 
 
+Llama 3.1 405B is one of the largest open-source language model developed by Meta AI, consisting of featuring 405 billion weight parameters. It is built on a Transformer architecture with Group Query Attention at its core. The model is trained on vast datasets and finetuned with human feedback. Llama 3.1 405B supports a context length of 128k tokens and is multilingual, supporting eight languages. It offers various applications such as synthetic data generation, model distillation, and research. The model also includes safety features like Llama Guard 3 and Prompt Guard to mitigate harmful outputs and prompt injection attacks.
+
+Throughput is a key indicator of a hardware’s processing efficiency. It provides insight into the model’s capacity to handle sequences and batches. We define throughput as the total number of tokens (both input and output) processed by the hardware per second. We first calculate the end-to-end latency, the time elapsed between the input prompt provided to LLM, and the generation of the final output token.
+
 ## Code Access
 
 ## FOM
@@ -8,7 +12,7 @@
 ## Run Inference FOM
 
 ## First time Setup
-
+On Aurora, the steps to set up the required software environment are listed below. vLLM is used as the inference serving engine with Ray as the backend to enable multi-node runs.
 ```bash
 
 module load cuda/12.3.0
