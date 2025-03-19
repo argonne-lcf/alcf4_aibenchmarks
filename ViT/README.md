@@ -19,7 +19,7 @@ forward layers. We can extend the work to include the decoder architecture in th
 ```
 
 ```bash
-where b_s = batch size
+where b_s = global batch size
       L = Number of layers
       H,D,W = height, width and depth of the input image. 
       p = patch size
