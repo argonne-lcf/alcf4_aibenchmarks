@@ -17,14 +17,14 @@ forward layers. We can extend the work to include the decoder architecture in th
 \begin{eqnarray}
     \text{FOM} = \frac{ b_sL(H.D.W / p^3)^2 d}{T},
 \end{eqnarray}
-
+```bash
 where b_s = batch size
       L = Number of layers
       H,D,W = height, width and depth of the input image. 
       p = patch size
       d = hidden dimension of the model
       T = Time to solution. 
-
+```
 ## Steps to Run
 
 
