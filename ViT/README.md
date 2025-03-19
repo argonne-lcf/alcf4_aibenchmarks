@@ -14,11 +14,11 @@ forward layers. We can extend the work to include the decoder architecture in th
 ## Code Access
 
 ## FOM
-```bash
+
 
     $`FOM = \frac{ b_sL(H.D.W / p^3)^2 d}{T}`$,
 
-
+```bash
 where b_s = batch size
       L = Number of layers
       H,D,W = height, width and depth of the input image. 
