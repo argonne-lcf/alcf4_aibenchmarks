@@ -54,6 +54,7 @@ OPTIONS=(\
      -D Boost_ROOT="${BOOST_ROOT}"\
      -D benchmark_ROOT="/path/to/your/install/directory"\
      -D ARBORX_ENABLE_BENCHMARKS=ON\
+     -D ARBORX_ENABLE_GPU_AWARE_MPI=ON\
      )
 
 cmake "${OPTIONS[@]}" "${ARBORX_SOURCE_DIR:-../}"
