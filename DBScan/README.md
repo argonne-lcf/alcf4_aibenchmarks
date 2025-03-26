@@ -1,7 +1,13 @@
 # DBSCAN
 
 ## Overview 
-DBSCAN (Density-based Spatial Clustering of Applications with Noise) is a popular clustering algorithm. It identifies dense neighborhoods of points as clusters while points in low-density regions are left as outliers. This benchmark uses the distributed DBSCAN algorithm implemented in the ArborX library, a performance portable geometric search library using Kokkos. Kokkos supports CPUs and GPUs from Nvidia, AMD, and Intel through backends such as OpenMP, CUDA, SYCL, and HIP.  
+DBSCAN (Density-based Spatial Clustering of Applications with Noise) is a popular clustering algorithm. It identifies dense neighborhoods of points as clusters while points in low-density regions are left as outliers. This benchmark uses the distributed DBSCAN algorithm implemented in the [ArborX](https://github.com/arborx/ArborX) library, a performance portable geometric search library using [Kokkos](https://kokkos.org). Kokkos supports CPUs and GPUs from Nvidia, AMD, and Intel through backends such as OpenMP, CUDA, SYCL, and HIP.  
+
+[Original DBSCAN paper:](https://cdn.aaai.org/KDD/1996/KDD96-037.pdf)
+Ester, Martin, Hans-Peter Kriegel, Jörg Sander, and Xiaowei Xu. "A density-based algorithm for discovering clusters in large spatial databases with noise." In KDD, vol. 96, no. 34, pp. 226-231. 1996.
+
+[Paper on DBSCAN in ArborX:](https://dl.acm.org/doi/10.1145/3605573.3605594)
+Andrey Prokopenko, Damien Lebrun-Grandié, and Daniel Arndt. 2023. Fast tree-based algorithms for DBSCAN for low-dimensional data on GPUs. In 52nd International Conference on Parallel Processing (ICPP 2023), August 07–10, 2023, Salt Lake City, UT, USA. ACM, New York, NY, USA, 10 pages. 
 
 ## Code Access
 This benchmark is part of the open source [ArborX](https://github.com/arborx/ArborX) library.
