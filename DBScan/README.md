@@ -10,6 +10,8 @@ Halo finding in cosmology: one of the recurring analysis steps during cosmologic
 
 Downsampling data in computational fluid dynamics (CFD): it can be challenging to train reduced-order machine learned models on data from fluid dynamics simulations because large meshes result in many features (high-dimensional datasets). Brewer, et al. designed a method for subsampling meshes using clustering [4]. Although they demonstrated their method on smaller problems, CFD simulations on leadership-class supercomputers often have meshes that do not fit in memory on a single node.
 
+Identifying cell populations in single-cell analysis: single-cell data, such as data from mass cytometry, can quickly become large. FastPG was designed to quickly cluster millions of cells in order to identify cell populations [5]. It was funded by ECP through ExaGraph and is integrated into [MCMICRO](https://mcmicro.org/), a pipeline that transforms multi-channel whole-slide images into single-cell data [6]. 
+
 
 ## Code Access
 This benchmark is part of the open source [ArborX](https://github.com/arborx/ArborX) library.
@@ -44,3 +46,11 @@ Prokopenko, Andrey, Daniel Arndt, Damien Lebrun-Grandié, Bruno Turcksin, Nichol
 
 [4] [Paper on clustering to subsample CFD meshes:](https://dl.acm.org/doi/pdf/10.1145/3624062.3626084)
 Brewer, Wesley, Daniel Martinez, Muralikrishnan Gopalakrishnan Meena, Aditya Kashi, Katarzyna Borowiec, Siyan Liu, Christopher Pilmaier, Greg Burgreen, and Shanti Bhushan. "Entropy-driven Optimal Sub-sampling of Fluid Dynamics for Developing Machine-learned Surrogates." In Proceedings of the SC'23 Workshops of the International Conference on High Performance Computing, Network, Storage, and Analysis, pp. 73-80. 2023.
+
+[5] [Paper on FastPG for clustering cells:](https://www.biorxiv.org/content/10.1101/2020.06.19.159749v2.full.pdf)
+Bodenheimer, Tom, Mahantesh Halappanavar, Stuart Jefferys, Ryan Gibson, Siyao Liu, Peter J. Mucha, Natalie Stanley, Joel S. Parker, and Sara R. Selitsky. "FastPG: fast clustering of millions of single cells." BioRxiv (2020): 2020-06.
+
+[6] [Paper on MCMICRO:](https://www.nature.com/articles/s41592-021-01308-y.pdf)
+Schapiro, Denis, Artem Sokolov, Clarence Yapp, Yu-An Chen, Jeremy L. Muhlich, Joshua Hess, Allison L. Creason et al. "MCMICRO: a scalable, modular image-processing pipeline for multiplexed tissue imaging." Nature methods 19, no. 3 (2022): 311-315.
+
+
