@@ -1,10 +1,14 @@
 # DBSCAN
 
 ## Overview 
-DBSCAN (Density-based Spatial Clustering of Applications with Noise) is a popular clustering algorithm. It identifies dense neighborhoods of points as clusters while points in low-density regions are left as outliers. This benchmark uses the distributed DBSCAN algorithm implemented in the [ArborX](https://github.com/arborx/ArborX) library, a performance portable geometric search library using [Kokkos](https://kokkos.org). Kokkos supports CPUs and GPUs from Nvidia, AMD, and Intel through backends such as OpenMP, CUDA, SYCL, and HIP.  
+DBSCAN (Density-based Spatial Clustering of Applications with Noise) is a popular clustering algorithm [1]. It identifies dense neighborhoods of points as clusters while points in low-density regions are left as outliers. This benchmark uses the distributed DBSCAN algorithm implemented in the [ArborX](https://github.com/arborx/ArborX) library, a performance portable geometric search library using [Kokkos](https://kokkos.org) [2]. Kokkos supports CPUs and GPUs from Nvidia, AMD, and Intel through backends such as OpenMP, CUDA, SYCL, and HIP.  
 
 ### Science Motivation
-Halo finding in cosmology: one of the recurring analysis steps during cosmological N-body simulations is identifying halos (regions with a high density of dark matter particles). The Hardware Accelerated Cosmology Code (HACC) framework uses ArborX's implementation of DBSCAN to find halos. Here, the dataset to cluster is composed of the 3-D positions of particles.
+ArborX was developed as part of the Exascale Computing Project (ECP) with the goal to support DOE applications at scale. One exascale application that ArborX supports is HACC (see below), which uses DBSCAN [3]. However, there are eight additional applications using ArborX in production listed [here](https://github.com/arborx/ArborX/wiki/AppsUsingArborx).
+
+Halo finding in cosmology: one of the recurring analysis steps during cosmological N-body simulations is identifying halos (regions with a high density of dark matter particles). The Hardware Accelerated Cosmology Code (HACC) framework uses ArborX's implementation of DBSCAN to find halos. Here, the dataset to cluster is composed of the 3-D positions of particles [3]. 
+
+Downsampling data in computational fluid dynamics (CFD): it can be challenging to train reduced-order machine learned models on data from fluid dynamics simulations because large meshes result in many features (high-dimensional datasets). Brewer, et al. designed a method for subsampling meshes using clustering [4]. Although they demonstrated their method on smaller problems, CFD simulations on leadership-class supercomputers often have meshes that do not fit in memory on a single node.
 
 
 ## Code Access
@@ -29,11 +33,14 @@ mpiexec --no-transfer -np 12 --ppn 12 --cpu-bind=list:0-7:8-15:16-23:24-31:32-39
 ```
 
 ## References
-[Original DBSCAN paper:](https://cdn.aaai.org/KDD/1996/KDD96-037.pdf)
+[1] [Original DBSCAN paper:](https://cdn.aaai.org/KDD/1996/KDD96-037.pdf)
 Ester, Martin, Hans-Peter Kriegel, Jörg Sander, and Xiaowei Xu. "A density-based algorithm for discovering clusters in large spatial databases with noise." In KDD, vol. 96, no. 34, pp. 226-231. 1996.
 
-[Paper on DBSCAN in ArborX:](https://dl.acm.org/doi/10.1145/3605573.3605594)
+[2] [Paper on DBSCAN in ArborX:](https://dl.acm.org/doi/10.1145/3605573.3605594)
 Andrey Prokopenko, Damien Lebrun-Grandié, and Daniel Arndt. 2023. Fast tree-based algorithms for DBSCAN for low-dimensional data on GPUs. In 52nd International Conference on Parallel Processing (ICPP 2023), August 07–10, 2023, Salt Lake City, UT, USA. ACM, New York, NY, USA, 10 pages. 
 
-[Paper on improvements to ArborX to support HACC:](https://journals.sagepub.com/doi/abs/10.1177/10943420241298296)
+[3] [Paper on improvements to ArborX to support HACC:](https://journals.sagepub.com/doi/abs/10.1177/10943420241298296)
 Prokopenko, Andrey, Daniel Arndt, Damien Lebrun-Grandié, Bruno Turcksin, Nicholas Frontiere, J. D. Emberson, and Michael Buehlmann. "Advances in ArborX to support exascale applications." The International Journal of High Performance Computing Applications 39, no. 1 (2025): 167-176.
+
+[4] [Paper on clustering to subsample CFD meshes:](https://dl.acm.org/doi/pdf/10.1145/3624062.3626084)
+Brewer, Wesley, Daniel Martinez, Muralikrishnan Gopalakrishnan Meena, Aditya Kashi, Katarzyna Borowiec, Siyan Liu, Christopher Pilmaier, Greg Burgreen, and Shanti Bhushan. "Entropy-driven Optimal Sub-sampling of Fluid Dynamics for Developing Machine-learned Surrogates." In Proceedings of the SC'23 Workshops of the International Conference on High Performance Computing, Network, Storage, and Analysis, pp. 73-80. 2023.
