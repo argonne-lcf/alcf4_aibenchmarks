@@ -31,9 +31,22 @@ The first term is from the computation, and the second time is from reduction of
 ### FOM definition
 The FOM can be defined as the ratio between the complexity of the problem and the time to solution. 
 
+
+## FOM
+
 $$
-\text{FOM} = \frac{(6sd^2 + s^2d)bL}{T}\,.
-$$
+```math
+FOM = \frac{(6sd^2 + s^2d)bL}{T}
+```
+
+```bash
+where s = sequence length
+      L = Number of layers
+      b = global batch size
+      d = hidden dimension of the model
+      T = time per training step. 
+```
+
 Notice that here we only consider the computation part in the complexity. The communication comes into play only because we cannot
 
 ## Steps to Run
