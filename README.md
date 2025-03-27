@@ -1,8 +1,8 @@
 # ALCF-4 AI Benchmark suite
 
-This is a repository of AI benchmarks used for ALCF-4. The list of benchmarks include
-1) AI Communications microbenchmark
-2) LLM Training and Inference
-3) Vision Transformer
-4) DBScan
-5) DLIO - I/O benchmark for AI applications
+This repository contains AI models in the [ALCF-4 Benchmark Suite](https://github.com/argonne-lcf/alcf4_benchmarks). The list of benchmarks include
+1) LLM Training and Inference 
+2) 3D Vision Transformer
+3) DBScan
+4) AICommsBench (AI Communications microbenchmark)
+5) DLIO (I/O benchmark)
