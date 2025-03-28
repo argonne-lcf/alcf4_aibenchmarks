@@ -60,9 +60,9 @@ git clone https://github.com/argonne-lcf/alcf4_aibenchmarks.git
 
 cd alcf4_aibenchmarks/AICommsBench
 
-python ${WORK_DIR}/tensor_parallel_with_gradient_synchronization.py -dvc "xpu" \
+python tensor_parallel_with_gradient_synchronization_a2a_debug.py -dvc "xpu" \
 -tp_degree=${TP_DEGREE} --warmup_iterations ${WARMUPS} --iterations=${TIMING_LOOPS} --precision ${PRECISION} -n_layers ${N_LAYERS} \
---logging --log_directory=${WORK_DIR}/run_scripts/outdir_aurora/logs --log_file=${RUN_ID}.log
+--logging --log_directory=${WORK_DIR}/logs --log_file=${RUN_ID}.log
 ```
 
 
