@@ -4,20 +4,44 @@
 ## Overview 
 
 This mini-app captures the performance effects on major collectives (`allreduce`,
-`allgather`, `reduce-scatter`) in the presence of proxy compute (for example, 
+`allgather`, `reduce-scatter`, `alltoall`) in the presence of proxy compute (for example, 
 GEMM calculations). The mini-app is designed to accommodate different 
-parallelisms such as tensor parallelism, sequence parallelism and data 
-parallelism -- commonly used in LLM and ViT training schemes.
+parallelisms such as tensor parallelism, sequence parallelism, data parallelism 
+-- commonly used in LLM and ViT training schemes. We also have a proxy
+implementation of the communication pattern of the Ulysses sequence 
+parallelism.
+
+### Important Features
+In this benchmark we tried to capture the dominant communication patterns in LLM
+and ViT training while remaining faithful to the full application. We measure 
+the timing of the collectives in the presence of proxy compute which presents a
+more realistic (although not complete) scenario than measuring them in isolation.
+
+In capturing the communication patterns, we tried to implement different 
+communication groups following the patterns in the full application. This 
+captures the main essence of the sub-communicators in the training scheme which
+plays important role in the estimating the training iteration time.
+
+_Note_: We are working on a code path, where this mini-app can be utilized as a
+communication only (no compute) benchmark.
 
 ## Code Access
 
 There are two scripts in the repository:
 
-`tensor_parallel_with_gradient_synchronization.py`: The main Python file with 
+`tensor_parallel_with_gradient_synchronization_a2a_debug.py`: The main Python file with 
 the PyTorch implementation of the benchmark mini-app.
 
-`qsub_aurora_no_sp_tensor_parallelism_compute.sh`: An example PBS job submission
+`qsub_aurora_1t_analytical.sh`: An example PBS job submission
 script to run on Aurora.
+
+### Important Arguments
+The most important arguments that the mini-app takes are the following:
+
+- `sequence_length`, `hidden_dimension`
+- `tp_degree`: Degree of tensor parallelism, representing the `allreduce` communication pattern.
+- `sp_switch`: Allowing sequence parallelism, representing the `allgather`, `reduce-scatter` communication patterns.
+- `ulysses_enable`: Allowing Ulysses sequence parallelism, representing the `alltoall` communication pattern
 
 ## FOM
 
