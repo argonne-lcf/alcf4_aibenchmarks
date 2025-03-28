@@ -1,5 +1,5 @@
 
-# AICommsBench (AI collective communications benchmark)
+# AICommsBench (AI Collective Communications Benchmark)
 
 ## Overview 
 
