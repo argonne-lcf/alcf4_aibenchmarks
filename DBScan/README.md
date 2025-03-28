@@ -58,8 +58,19 @@ whole-slide images into single-cell data [6].
 
 ## Code Access
 This benchmark is part of the open source
-[ArborX](https://github.com/arborx/ArborX) library.
+[ArborX](https://github.com/arborx/ArborX) library. The executable is `/benchmarks/cluster/ArborX_Benchmark_DistributedDBSCAN.exe`.
 
+## Dataset
+This benchmark uses three-dimensional synthetic data generated on each rank. The data generation code is in ArborX at [/benchmarks/cluster/distributed_data.hpp](https://github.com/arborx/ArborX/blob/master/benchmarks/cluster/distributed_data.hpp). Here is a sketch of the steps:
+1. Factorize `comm_size` (the number of ranks) into three factors so that each rank can be assigned a different region in 3D space. For example, for 12 ranks, `factors = [3, 2, 2]` and for 48 ranks, `factors = [4, 4, 3]`.
+2. Assign each rank indices `Is` representing how the ranks are arranged in 3D space. For example, for 12 ranks, rank 0 is assigned `Is = [0, 0, 0]` and rank 11 is assigned `Is = [2, 1, 1]`.
+3. For simplicity, update `n`, the requested number of points per rank, to be a cube (`n = nx^3` for some integer `nx`). For example, for `--n 400000000`, `n` is updated to `n = 398688256 = 736^3`.
+4. On each rank, generate `n` points with a Kokkos parallel for loop.
+   - In each direction (`x, y, z`), there are `num_seq` points in a row followed by user-defined spacing. For example, if `num_seq = 50` and `spacing = 10`, the possible x coordinates are `x = 0, 1, 2, ..., 49, 59, 60, 61, ..., 108, 118, ...` The `pos` function handles adding the spacing. 
+   - This means that if `1 < eps < spacing`, there are clear clusters with `num_seq^3` points. For example, for `num_seq = 50`, each cluster has 125000 points.
+   - For `num_seq = 50`, the first cluster consists of the 125000 points where `x = 0, 1, 2, ..., 49`, `y = 0, 1, 2, ..., 49`, and `z = 0, 1, 2, ..., 49`.
+   - The indices `Is` separate the ranks in 3D space. For example, for rank 0, `Is = [0, 0, 0]`, and for rank 1, `Is = [1, 0, 0]`, so the data generated on ranks 0 and 1 have the same y and z coordinates but separate x coordinates. Specifically, the largest x coordinate on rank 0 is `pos(nx-1)` and the x coordinates on rank 1 start at `pos(nx)`. Depending on the values of `nx`, `num_seq`, and `spacing`, the gap between `pos(nx-1)` and `pos(nx)` could be 1 (meaning that a cluster spans rank 0 and rank 1 in the x dimension), or there could be a gap of `spacing`.
+     
 ## Figure-of-merit (FOM)
  ```math
  FOM = \frac{nd}{T}
