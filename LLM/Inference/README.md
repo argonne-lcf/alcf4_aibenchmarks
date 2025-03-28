@@ -70,7 +70,7 @@ The following example serves `meta-llama/Llama-3.1-405B-Instruct` model using 2 
 3. Use `infr_bench.py` script provided here to collect throughput measurements in the respective `csv` file. 
 
     ```bash
-    python generic-bench.py --input-length 1024 --output-length 1024 --batch-size 1
+    python infr_bench.py --input-length 1024 --output-length 1024 --batch-size 1
     ```
 
 ## Collect FOM metric 
