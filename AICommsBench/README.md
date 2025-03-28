@@ -22,10 +22,8 @@ more realistic (although not complete) scenario than measuring them in isolation
 In capturing the communication patterns, we tried to implement different 
 communication groups following the patterns in the full application. This 
 captures the main essence of the sub-communicators in the training scheme which
-plays important role in the estimating the training iteration time.
-
-This critical component of capturing communication patterns from realistic AI models is
-not present in OSU/NCCL benchmarks.
+plays important role in the estimating the training iteration time. This critical component of capturing communication patterns 
+from realistic AI models is not present in OSU/NCCL benchmarks.
 
 _Note_: We are working on a code path, where this mini-app can be utilized as a
 communication only (no compute) benchmark.
