@@ -12,7 +12,9 @@ implementation of the communication pattern of the Ulysses sequence
 parallelism.
 
 ### Important Features
-In this benchmark we tried to capture the dominant communication patterns in LLM
+Here, we reason why we need this benchmark, unlike standard MPI benchmarks like OSU.
+
+In this work, we tried to capture the dominant communication patterns in LLM
 and ViT training while remaining faithful to the full application. We measure 
 the timing of the collectives in the presence of proxy compute which presents a
 more realistic (although not complete) scenario than measuring them in isolation.
@@ -21,6 +23,9 @@ In capturing the communication patterns, we tried to implement different
 communication groups following the patterns in the full application. This 
 captures the main essence of the sub-communicators in the training scheme which
 plays important role in the estimating the training iteration time.
+
+This critical component of capturing communication patterns from realistic AI models is
+not present in OSU/NCCL benchmarks.
 
 _Note_: We are working on a code path, where this mini-app can be utilized as a
 communication only (no compute) benchmark.
@@ -46,7 +51,7 @@ The most important arguments that the mini-app takes are the following:
 ## FOM
 
 We do not have a strictly defined FOM, but we measure several important 
-characteristic quantities regarding collectives (i.e. Throughout, and timing 
+characteristic quantities regarding collectives (i.e. Throughput, and timing 
 measurement of each collective operations)
 
 ## Steps to Run
