@@ -1,0 +1,138 @@
+INFO:root:rank 0/96
+INFO:root:Master Address = x4520c3s0b0n0
+INFO:root:TP group = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+INFO:root:TP group = [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+INFO:root:TP group = [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
+INFO:root:TP group = [36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47]
+INFO:root:TP group = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]
+INFO:root:TP group = [60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71]
+INFO:root:TP group = [72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83]
+INFO:root:TP group = [84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95]
+INFO:root:DP group = [0, 12, 24, 36, 48, 60, 72, 84]
+INFO:root:DP group = [1, 13, 25, 37, 49, 61, 73, 85]
+INFO:root:DP group = [2, 14, 26, 38, 50, 62, 74, 86]
+INFO:root:DP group = [3, 15, 27, 39, 51, 63, 75, 87]
+INFO:root:DP group = [4, 16, 28, 40, 52, 64, 76, 88]
+INFO:root:DP group = [5, 17, 29, 41, 53, 65, 77, 89]
+INFO:root:DP group = [6, 18, 30, 42, 54, 66, 78, 90]
+INFO:root:DP group = [7, 19, 31, 43, 55, 67, 79, 91]
+INFO:root:DP group = [8, 20, 32, 44, 56, 68, 80, 92]
+INFO:root:DP group = [9, 21, 33, 45, 57, 69, 81, 93]
+INFO:root:DP group = [10, 22, 34, 46, 58, 70, 82, 94]
+INFO:root:DP group = [11, 23, 35, 47, 59, 71, 83, 95]
+INFO:root:start loop
+INFO:root:ulss_interim_1 Shape from results = torch.Size([16896, 1, 2156])
+INFO:root:Results from RANK 0 of 96
+INFO:root:==== Main Results ====
+
+INFO:root:Running with bfloat16 data type
+INFO:root:==== List of Arguments ====
+INFO:root:Sequence Length = 16896
+INFO:root:Hidden Dimension = 25872
+INFO:root:Number of transformer layers = 1
+INFO:root:Precision Type = bfloat16
+INFO:root:SP Value = False
+INFO:root:TP Degree = 12
+INFO:root:ULSS Value = False
+INFO:root:==== List of Arguments ====
+INFO:root:Input mean before operations = 0.000000
+INFO:root:Result mean after all  operations = 0.000005
+INFO:root:Shape of the (Q,K,V) atten. matrix = torch.Size([2156, 25872])
+INFO:root:Shape of the WO atten. matrix = torch.Size([25872, 2156])
+INFO:root:Shape of the Weight matrix (H --> 4H)= torch.Size([8624, 25872])
+INFO:root:Shape of the Weight matrix (4H --> H)= torch.Size([25872, 8624])
+INFO:root:Interim 2 Size = torch.Size([16896, 1, 25872])
+INFO:root:Interim 4 Size = torch.Size([16896, 1, 25872])
+INFO:root:Parameters (per rank) = 0.55780032 Billions
+INFO:root:N_iter_grad_sync = 1
+INFO:root:Allgather buffer size = 874.266624 MB
+INFO:root:Grad Sync Allreduce bucket size = 2000.0 MB
+INFO:root:Maximum DP Allreduce Throughput = 2775.315791284724 MB/s
+INFO:root:Minimum DP Allreduce Throughput = 1793.1995183835493 MB/s
+INFO:root:TP Allreduce 1 data volume per layer per iteration = 874.266624 MB
+INFO:root:TP Allreduce 2 data volume per layer per iteration = 874.266624 MB
+INFO:root:TP Allreduce 1 Max. Throughput per layer per iteration = 52288.08888321644 MB/s
+INFO:root:TP Allreduce 2 Max. Throughput per layer per iteration = 45232.692828851854 MB/s
+INFO:root:TP Allreduce 1 Min. Throughput per layer per iteration = 85.54050895885715 MB/s
+INFO:root:TP Allreduce 2 Min. Throughput per layer per iteration = 17224.556823584568 MB/s
+INFO:root:
+==== Timings per transformer layer ====
+INFO:root:First All2All for ULSS takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:Second All2All for ULSS takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:ULSS Attention Matrix W_QKV multiplication takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:ULSS Attention Matrix WO multiplication takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:ULSS H --> 4H Matrix multiplication takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:ULSS 4H --> H Matrix multiplication takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:First Allgather for SP takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:Column Parallel Attention Matrix W_QKV multiplication takes max. 14207.7940 ms,  min. 11.1458 ms, avg. 1785.8492 ms
+INFO:root:Row Parallel Attention Matrix WO multiplication takes max. 39.8859 ms,  min. 12.1159 ms, avg. 16.5554 ms
+INFO:root:First Reduce Scatter for SP takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:First Allreduce for TP takes max. 10220.4983 ms,  min. 16.7202 ms, avg. 1292.8104 ms
+INFO:root:Second Allgather for SP takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:H --> 4H Matrix multiplication takes max. 45.5028 ms,  min. 43.7440 ms, avg. 44.4839 ms
+INFO:root:4H --> H Matrix multiplication takes max. 48.6835 ms,  min. 44.1652 ms, avg. 45.6521 ms
+INFO:root:Second Reduce Scatter for SP takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:Second Allreduce for TP takes max. 50.7570 ms,  min. 19.3282 ms, avg. 24.9626 ms
+INFO:root:Grad Sync Allreduce over DP groups takes max. 1115.3249 ms,  min. 720.6387 ms, avg. 778.9324 ms
+INFO:root:
+==== Total Times for all transformer layers ====
+INFO:root:First All2All for ULSS takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:Second All2All for ULSS takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:ULSS Attention Matrix W_QKV multiplication takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:ULSS Attention Matrix WO multiplication takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:ULSS H --> 4H Matrix multiplication takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:ULSS 4H --> H Matrix multiplication takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:First Allgather for SP takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:Column Parallel Attention Matrix W_QKV multiplication takes max. 14207.7940 ms,  min. 11.1458 ms, avg. 1785.8492 ms
+INFO:root:Row Parallel Attention Matrix WO multiplication takes max. 39.8859 ms,  min. 12.1159 ms, avg. 16.5554 ms
+INFO:root:First Reduce Scatter for SP takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:First Allreduce for TP takes max. 10220.4983 ms,  min. 16.7202 ms, avg. 1292.8104 ms
+INFO:root:Second Allgather for SP takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:H --> 4H Matrix multiplication takes max. 45.5028 ms,  min. 43.7440 ms, avg. 44.4839 ms
+INFO:root:4H --> H Matrix multiplication takes max. 48.6835 ms,  min. 44.1652 ms, avg. 45.6521 ms
+INFO:root:Second Reduce Scatter for SP takes max. 0.0000 ms,  min. 0.0000 ms, avg. 0.0000 ms
+INFO:root:Second Allreduce for TP takes max. 50.7570 ms,  min. 19.3282 ms, avg. 24.9626 ms
+INFO:root:Grad Sync Allreduce over DP groups takes max. 1115.3249 ms,  min. 720.6387 ms, avg. 778.9324 ms
+INFO:root:
+==== ALL RESULTS ====
+INFO:root:First All2All total times from timing loop = [0. 0. 0. 0. 0. 0. 0. 0.] ms
+INFO:root:Second All2All total times from timing loop = [0. 0. 0. 0. 0. 0. 0. 0.] ms
+INFO:root:ULSS Attention W_QKV matrix multiplication total times from timing loop = [0. 0. 0. 0. 0. 0. 0. 0.] ms
+INFO:root:ULSS Attention WO matrix multiplication total times from timing loop = [0. 0. 0. 0. 0. 0. 0. 0.] ms
+INFO:root:ULSS Weight matrix (H --> 4H) multiplication total times from timing loop = [0. 0. 0. 0. 0. 0. 0. 0.] ms
+INFO:root:ULSS Weight matrix (4H --> H) multiplication total times from timing loop = [0. 0. 0. 0. 0. 0. 0. 0.] ms
+INFO:root:First allgather total times from timing loop = [0. 0. 0. 0. 0. 0. 0. 0.] ms
+INFO:root:First reduce scatter total times from timing loop = [0. 0. 0. 0. 0. 0. 0. 0.] ms
+INFO:root:First allreduce total times from timing loop = [10220.498272    16.720187    16.969339    17.772649    17.658804
+    17.41848     17.156851    18.288517] ms
+INFO:root:Attention W_QKV matrix multiplication total times from timing loop = [14207.793953    11.517284    11.201005    11.279383    11.171695
+    11.307929    11.376571    11.145767] ms
+INFO:root:Attention WO matrix multiplication total times from timing loop = [39.885908 19.558449 12.117418 12.238437 12.171697 12.231117 12.115928
+ 12.124434] ms
+INFO:root:Weight matrix (H --> 4H) multiplication total times from timing loop = [43.744041 45.502812 44.259943 44.084871 44.241177 44.777886 44.083012
+ 45.177242] ms
+INFO:root:Weight matrix (4H --> H) multiplication total times from timing loop = [48.683504 48.121271 44.165229 44.938193 44.577853 45.296805 45.211046
+ 44.222787] ms
+INFO:root:Second allgather total times from timing loop = [0. 0. 0. 0. 0. 0. 0. 0.] ms
+INFO:root:Second reduce scatter total times from timing loop = [0. 0. 0. 0. 0. 0. 0. 0.] ms
+INFO:root:Second allreduce total times from timing loop = [21.625821 50.756988 23.286723 21.328483 20.874177 19.328202 20.780815
+ 21.719497] ms
+INFO:root:Grad Sync Total times from timing loop = [1115.324859  738.463944  720.638713  735.701726  720.651229  729.530022
+  749.88155   721.266863] ms
+INFO:root:TP Sync times from timing loop = [252.243277  32.501212  55.55531   56.260983  54.977642  61.785423
+  55.805799  42.623237] ms
+INFO:root:ULSS Sync times from timing loop = [0. 0. 0. 0. 0. 0. 0. 0.] ms
+INFO:root:DP Sync Barrier at the beginning times from timing loop = [1262.17811     0.342593    1.689619    2.215062    2.696604    3.292766
+    2.947103    1.608536] ms
+INFO:root:DP Sync Barrier at the end times from timing loop = [ 8.850021  1.631778 13.396161  0.599812  6.751803  8.02786   1.180142
+  0.91368 ] ms
+INFO:root:Timing loop times = [27220.985137   965.217756   943.357172   946.495936   935.852093
+   953.074429   960.619745   919.170809]
+INFO:root:Total time taken for 8 timing loops = 33844.773077000005 ms
+INFO:root:
+==== TFLOPS per transformer layer ====
+INFO:root:Column Parallel Attention Matrix W_QKV multiplication TFLOPS max. 169.1120,  min. 0.1327, avg. 1.0555
+INFO:root:Row Parallel Attention Matrix WO multiplication TFLOPS max. 155.5375,  min. 47.2468, avg. 113.8287
+INFO:root:H --> 4H Matrix multiplication TFLOPS max. 172.3556,  min. 165.6937, avg. 169.4891
+INFO:root:4H --> H Matrix multiplication TFLOPS max. 170.7053,  min. 154.8623, avg. 165.1455
+INFO:root:==== Finished Running ====
