@@ -142,6 +142,6 @@ main() {
     echo "[$(hostname)] Ray cluster is up and running with $num_nodes nodes."
 }
 
-main 
+#main 
 
 
