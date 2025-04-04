@@ -80,7 +80,7 @@ is the time to solution. FOM is highly dependent on the data distribution and
 the DBSCAN parameters $minPts$ and $\varepsilon$. Here we consider $minPts = 2$,  $\varepsilon = 5$, and the data distribution described above.
 
 ### Results on Aurora
-With $n = 669921875 = 875^3$ three-dimensional points per rank, $\varepsilon = 5$, `num_seq = 50`, and `spacing = 10`.
+These results are with $n = 669921875 = 875^3$ three-dimensional points per rank, $\varepsilon = 5$, `num_seq = 50`, and `spacing = 10`. 
 
 | Number of Nodes | n (global) | T (seconds)| FOM |
 | ----------- | ----------- | - | - |
@@ -93,6 +93,8 @@ With $n = 669921875 = 875^3$ three-dimensional points per rank, $\varepsilon = 5
 | 64 | 514,500,000,000 | 29.863 | 51,686,032,884 |
 | 128 | 1,029,000,000,000 | 37.274 | 82,819,123,249 |
 | 256 | 2,058,000,000,000 | 52.944 | 116,613,780,598 |
+
+The library versions were ArborX 1.7.99 and Kokkos 4.5.1.
 
 ## Steps to Run
 This benchmark is part of the [ArborX repository](https://github.com/arborx/ArborX).
