@@ -11,8 +11,8 @@ newer VIT variants. We use a transformer based no-mask encoder to processes
 the sequence of 3D patch embeddings using self-attention mechanisms and feed-
 forward layers. We can extend the work to include the decoder architecture in the future. 
 
-## Code Access
-
+## Steps to Run
+Instructions are in the readme of submodule [here](https://github.com/Eugene29/Megatron-DeepSpeed_ViT/blob/794237fd851b4c268b4b07cd87685306fef986ba/README.md).
 ## FOM
  ```math
  FOM = \frac{ b_sL(N^2 d+6 d^2 N)}{T} 
@@ -34,7 +34,6 @@ where b_s = global batch size
 
 ## Link to experimental results 
 https://argonnedoe-my.sharepoint.com/:x:/r/personal/vsastry_anl_gov/Documents/3D_ViT_benchmarks_experiments.xlsx?d=w697311c7877e492ca135d882927524a7&csf=1&web=1&e=QpfU9s
-## Steps to Run
-Instructions are in the readme of submodule. 
+
 
 
