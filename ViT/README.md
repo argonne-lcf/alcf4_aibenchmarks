@@ -30,6 +30,6 @@ where b_s = global batch size
 ## Link to experimental results 
 https://argonnedoe-my.sharepoint.com/:x:/r/personal/vsastry_anl_gov/Documents/3D_ViT_benchmarks_experiments.xlsx?d=w697311c7877e492ca135d882927524a7&csf=1&web=1&e=QpfU9s
 ## Steps to Run
-
+Instructions are in the readme of submodule. 
 
 
