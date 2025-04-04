@@ -77,7 +77,22 @@ This benchmark uses three-dimensional synthetic data generated on each rank. The
 ```
 where $n$ is the number of points to cluster, $d$ is their dimension, and $T$
 is the time to solution. FOM is highly dependent on the data distribution and
-the DBSCAN parameters $minPts$ and $\varepsilon$.
+the DBSCAN parameters $minPts$ and $\varepsilon$. Here we consider $minPts = 2$,  $\varepsilon = 5$, and the data distribution described above.
+
+### Results on Aurora
+With $n = 669921875 = 875^3$ three-dimensional points per rank, $\varepsilon = 5$, `num_seq = 50`, and `spacing = 10`.
+
+| Number of Nodes | n (global) | T (seconds)| FOM |
+| ----------- | ----------- | - | - |
+| 1 | 8,039,062,500 | 22.263 | 1,083,285,608 |
+| 2 | 16,078,125,000 | 22.417 | 2,151,687,336 | 
+| 4 | 32,156,250,000 | 22.662 | 4,256,850,675 |
+| 8 | 64,312,500,000 | 22.759 | 8,477,415,528 |
+| 16 | 128,625,000,000 | 22.874 | 16,869,589,927 |
+| 32 | 257,250,000,000 | 23.026 | 33,516,459,654 |
+| 64 | 514,500,000,000 | 29.863 | 51,686,032,884 |
+| 128 | 1,029,000,000,000 | 37.274 | 82,819,123,249 |
+| 256 | 2,058,000,000,000 | 52.944 | 116,613,780,598 |
 
 ## Steps to Run
 This benchmark is part of the [ArborX repository](https://github.com/arborx/ArborX).
