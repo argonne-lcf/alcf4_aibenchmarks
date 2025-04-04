@@ -15,9 +15,10 @@ forward layers. We can extend the work to include the decoder architecture in th
 
 ## FOM
  ```math
- FOM = \frac{ b_sL((N)^2 d+6 (d)^2 N)}{T}
- where N = H.D.W / p^3
- FOM = \frac{ b_sL(H.D.W / p^3)^2 d}{T}
+ FOM = \frac{ b_sL(N^2 d+6 d^2 N)}{T}
+
+where N = H.D.W / p^3
+ 
 ```
 
 ```bash
