@@ -81,7 +81,7 @@ C_{prefill} = { b N (6d^2 T_{in} + d T_{in}^2)}
 ```
 
 ```math
-C_{decode} = { b N (6d^2 (T_{in} + T_{out})^2 ) }
+C_{decode} = { b N T_{out} * 6d^2}
 ```
 
 ```math 
