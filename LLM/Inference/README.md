@@ -73,8 +73,32 @@ The following example serves `meta-llama/Llama-3.1-405B-Instruct` model using 2 
     python infr_bench.py --input-length 1024 --output-length 1024 --batch-size 1
     ```
 
-## Collect FOM metric 
+## FOM 
+Since inference includes two phases, prefill (compute-bound) and decode (memory bandwidth-bound), we introduce problem complexities (C) separately for two phases.
 
+```math
+C_{prefill} = { b L (6d^2 T_{in} + d T_{in}^2)}
+```
+
+```math
+C_{decode} = { b L6d^2 (T_{in} + T_{out})^2  }
+```
+
+```math 
+FOM = \frac {C_{prefill} + C_{decode}} {L}
+```
+
+```bash
+where 
+      L = Number of layers
+      b = global batch size
+      d = hidden dimension of the model
+      T_{in} = input token length
+      T_{out} = output token length
+      L = End-to-end latency 
+```
+
+<!--
 1. `FOM1` : Collect throughput with large `input-length` and moderate `output-length` (pre-fill compute intensive)
 2. `FOM2` : Colelct throughput with moderate `input-length` and large `output-length` (decode memory intensive)
 3. `FOM3` : Collect throughput with moderate `input-length`, `output-length` but large `max-model-len` (need mulltiple nodes i/o intensive)
@@ -86,6 +110,6 @@ FOM = FOM1 + FOM2 + FOM3
 
 ## FOM for Aurora
 
-
+-->
 
 
