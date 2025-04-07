@@ -77,11 +77,11 @@ The following example serves `meta-llama/Llama-3.1-405B-Instruct` model using 2 
 Since inference includes two phases, prefill (compute-bound) and decode (memory bandwidth-bound), we introduce problem complexities (C) separately for two phases.
 
 ```math
-C_{prefill} = { b L (6d^2 T_{in} + d T_{in}^2)}
+C_{prefill} = { b N (6d^2 T_{in} + d T_{in}^2)}
 ```
 
 ```math
-C_{decode} = { b L6d^2 (T_{in} + T_{out})^2  }
+C_{decode} = { b N (6d^2 (T_{in} + T_{out})^2 ) }
 ```
 
 ```math 
@@ -90,7 +90,7 @@ FOM = \frac {C_{prefill} + C_{decode}} {L}
 
 ```bash
 where 
-      L = Number of layers
+      N = Number of layers
       b = global batch size
       d = hidden dimension of the model
       T_{in} = input token length
