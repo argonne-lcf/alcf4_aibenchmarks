@@ -29,7 +29,7 @@ t = \alpha \frac{bL(36sd^2 + 6s^2d)}{PP\cdot TP}  + \beta\frac{4 bLsd}{PP}
 
 where $\alpha$ is the FLOP/s per GPU, and $\beta$ is the intranode allreduce bandwidth. 
 
-The first term is from the computation, and the second time is from reduction of $[s, d]$ matrix for for 4 times. If we have data parallelism, we also have an allreduce within each DP groups. We will have $TP*PP$ allreduce concurrently in this step. If it is implemented in a efficient way, the allreduce of previous layer can be overlap with the computation of next layer. Therefore, the DP communication can be neglected. 
+The first term is from the computation, and the second term is from reduction of $[s, d]$ matrix for for 4 times. If we have data parallelism, we also have an allreduce within each DP groups. We will have $TP*PP$ allreduce concurrently in this step. If it is implemented in a efficient way, the allreduce of previous layer can be overlap with the computation of next layer. Therefore, the DP communication can be neglected. 
 
 ### FOM definition
 The FOM can be defined as the ratio between the complexity of the problem and the time to solution. 
