@@ -18,7 +18,7 @@ setup_environment() {
     
     # Load modules and activate your conda environment
     module load frameworks
-    conda activate vllm_0125
+    conda activate vllm
     
     module unload oneapi/eng-compiler/2024.07.30.002
     module use /opt/aurora/24.180.3/spack/unified/0.8.0/install/modulefiles/oneapi/2024.07.30.002
@@ -142,6 +142,5 @@ main() {
     echo "[$(hostname)] Ray cluster is up and running with $num_nodes nodes."
 }
 
-#main 
 
 
