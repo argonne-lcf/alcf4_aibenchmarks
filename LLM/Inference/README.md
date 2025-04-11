@@ -113,10 +113,10 @@ where
 ```
 
 
-### Figure of Metrit on Aurora
+## Figure of Metrit on Aurora
 
 
-### `meta-llama/Llama-3.1-8B-Instruct`
+<!-- ### `meta-llama/Llama-3.1-8B-Instruct`
 | Number of Nodes | Tiles per Node | Input Length | Output Length | Time to Solution | FOM |
 |---|---|---|---|---|---|
 |1|1|8192|8192|3.123|1.97 × 10^13|
@@ -137,7 +137,7 @@ where
 |2|8|512|8192|22.859|1.23 × 10^13|
 |4|8|8192|8192|10.726|5.33 × 10^13|
 |4|8|8192|1|3.103|9.92 × 10^13|
-|4|8|512|8192|6.168|4.55 × 10^13|
+|4|8|512|8192|6.168|4.55 × 10^13| -->
 
 ### `meta-llama/Llama-3.1-405B-Instruct`
 | Number of Nodes | Tiles per Node | Input Length | Output Length | Time to Solution | FOM |
