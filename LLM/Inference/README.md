@@ -51,29 +51,43 @@ export RAY_TMPDIR="/tmp"
 export TMPDIR="/tmp"
 ```
 
-## Running a sample Experiment 
+## Running Experiment to collect FOM
 
-The following example serves `meta-llama/Llama-3.1-405B-Instruct` model using 2 nodes with `TP=8` and `PP=2`. Models exceeding 70 billion parameters generally require more than one Aurora node.
+The following example serves `meta-llama/Llama-3.1-405B-Instruct` model using 2 nodes with `TP=8` and `PP=10`. Models exceeding 70 billion parameters generally require more than one Aurora node.
 
-1. Use [`setup_ray_cluster.sh`](./setup_ray_cluster.sh) script to setup a Ray cluster across nodes
-    ```bash
-    source setup_ray_cluster.sh
-    ```
 
-2. Serve model
+Simplly run `run-fom.sh` script. This scripts serves `meta-llama/Llama-3.1-405B-Instruct` model using 10 nodes with Tensor Parallel = 8 and Pipeline Parallel =10. It has following steps:
+
+1. [`setup_ray_cluster.sh`](./setup_ray_cluster.sh) script sets up a Ray cluster across nodes.
 
     ```bash linenums="1"
-    vllm serve meta-llama/Llama-3.1-405B-Instruct --port 8000 --tensor-parallel-size 8 --pipeline-parallel-size 2 --device xpu --dtype float16 --trust-remote-code --max-model-len 4096
+    source setup_ray_cluster.sh
+    main
+    ```
+
+2. Serve model using vLLM.
+    ```
+    export tp_size=8
+    export pp_size=`wc -l < $PBS_NODEFILE`
+    export context_length=32768
+    start_vllm_serve $model_name $tp_size $pp_size $context_length 0.9
     ```
     Setting `--max-model-len` is important in order to fit this model on 2 nodes. In order to use higher `--max-model-len` values, you will need to use additonal nodes. 
 
-3. Use `infr_bench.py` script provided here to collect throughput measurements in the respective `csv` file. 
+2. Finally `infr_bench.py` script is used to collect throughput metric in the respective `csv` file. 
 
     ```bash
-    python infr_bench.py --input-length 1024 --output-length 1024 --batch-size 1
+    python infr-bench.py --input-length 8192 --output-length 8192 --batch-size 1
+    python infr-bench.py --input-length 8192 --output-length 1 --batch-size 1
+    python infr-bench.py --input-length 512 --output-length 8192 --batch-size 1
     ```
+    We collect 3 scenarios: 
+    (1) same input, output lenght of `8192` tokens
+    (2) Prefill Stage: `8192` input length, `1` output length
+    (3) decode stage: `512` input length, `8192` output length
+    `max-model-len` for all scneraios is `32768`
 
-## FOM 
+## Figure of Merit 
 Since inference includes two phases, prefill (compute-bound) and decode (memory bandwidth-bound), we introduce problem complexities (C) separately for two phases.
 
 ```math
@@ -98,22 +112,11 @@ where
       L = End-to-end latency 
 ```
 
-<!--
-1. `FOM1` : Collect throughput with large `input-length` and moderate `output-length` (pre-fill compute intensive)
-2. `FOM2` : Colelct throughput with moderate `input-length` and large `output-length` (decode memory intensive)
-3. `FOM3` : Collect throughput with moderate `input-length`, `output-length` but large `max-model-len` (need mulltiple nodes i/o intensive)
 
-```python 
-FOM = FOM1 + FOM2 + FOM3
-```
+### Figure of Metrit on Aurora
 
 
-## FOM for Aurora
-
--->
-
-
-## meta-llama/Llama-3.1-8B-Instruct
+### `meta-llama/Llama-3.1-8B-Instruct`
 | Number of Nodes | Tiles per Node | Input Length | Output Length | Time to Solution | FOM |
 |---|---|---|---|---|---|
 |1|1|8192|8192|3.123|1.97 × 10^13|
@@ -123,7 +126,7 @@ FOM = FOM1 + FOM2 + FOM3
 |1|8|8192|1|0.568|6.2 × 10^13|
 |1|8|512|8192|6.498|4.32 × 10^12|
 
-## meta-llama/Llama-3.3-70B-Instruct
+### `meta-llama/Llama-3.3-70B-Instruct`
 | Number of Nodes | Tiles per Node | Input Length | Output Length | Time to Solution | FOM |
 |---|---|---|---|---|---|
 |1|8|8192|8192|10.253|5.58 × 10^13|
@@ -136,7 +139,7 @@ FOM = FOM1 + FOM2 + FOM3
 |4|8|8192|1|3.103|9.92 × 10^13|
 |4|8|512|8192|6.168|4.55 × 10^13|
 
-## meta-llama/Llama-3.1-405B-Instruct
+### `meta-llama/Llama-3.1-405B-Instruct`
 | Number of Nodes | Tiles per Node | Input Length | Output Length | Time to Solution | FOM |
 |---|---|---|---|---|---|
 |2|8|1024|1024|39.319|1.36 × 10^11|

@@ -1,30 +1,46 @@
-export HF_TOKEN="YOUR_HF_TOKEN"
-export HF_HOME="PATH_TO_HUGGINGFACE_HOME"
-export HF_DATASETS_CACHE="PATH_TO_HUGGINGFACE_HOME"
+#!/bin/bash -l
+#PBS -l select=10
+#PBS -l walltime=0:60:00
+#PBS -q debug-scaling
+#PBS -l filesystems=flare
+#PBS -A datascience
 
-module load cuda/12.3.0
-source ~/.init_conda_x86.sh
-conda activate h100_vllm
 
-cd alcf4_aibenchmarks/LLM/Inference
-
-models=(
-"meta-llama/Llama-2-7b-hf"
-"meta-llama/Meta-Llama-3-8B"
-"meta-llama/Llama-2-70b-hf"
-"meta-llama/Meta-Llama-3-70B"
-"mistralai/Mistral-7B-v0.1"
-"mistralai/Mixtral-8x7B-v0.1"
-"Qwen/Qwen2-7B"
-"Qwen/Qwen2-72B"
-)
-
-for model in "${models[@]}"; do
-    for tensor_parallel in 1 2 4; do
-        for batch_size in 1 16 32 64; do
-            for input_output_length in 128 256 512 1024 2048; do
-                python3 benchmark_fom.py --device cuda --model=$model_name --tensor-parallel-size=$tensor_parallel --input-len=$input_output_length --output-len=$input_output_length --batch-size=$batch_size --dtype="float16" --trust-remote-code
-            done
-        done
+start_vllm_serve(){
+    echo "Startign vLLM Serve..."
+    log_file="nohup.out"
+    rm $log_file
+    
+    vllm serve $1 --port 8000 --tensor-parallel-size $2 --pipeline-parallel-size $3 --device xpu --dtype float16 --trust-remote-code --max-model-len $4 --gpu-memory-utilization $5  &> $log_file &
+    
+    while true; do
+        if [[ -f $log_file ]] && grep -q "INFO:     Application startup complete." "$log_file"; then
+            echo "vLLM Serving Successfully model: $1 "
+            return 0
+        fi
+        tail -5 $log_file
+        echo "Checking if vLLM has started..."
+        sleep 5
     done
-done
+    wait
+    rm $log_file
+}
+
+
+export model_name="meta-llama/Llama-3.1-405B-Instruct"
+export PROJ_DIR=/flare/datascience/sraskar/vllm-2025_1_release/vllm-2025_1/vllm/benchmarks/
+cd $PROJ_DIR
+
+export tp_size=8
+export pp_size=`wc -l < $PBS_NODEFILE`
+export context_length=32768
+
+source $PROJ_DIR/setup_ray_cluster.sh
+main 
+
+start_vllm_serve $model_name $tp_size $pp_size $context_length 0.9
+
+# Run the benchmark
+python infr-bench.py --input-length 65000 --output-length 65000 --batch-size 1
+python infr-bench.py --input-length 65000 --output-length 1 --batch-size 1
+python infr-bench.py --input-length 512 --output-length 65000 --batch-size 1
