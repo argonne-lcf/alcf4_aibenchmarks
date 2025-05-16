@@ -16,7 +16,8 @@ For performance testing, one can use small dataset listed here: https://github.c
 
 ## FOM
 
-The computational complexity of the model is determined by the hidden dimension (d), sequence length (s), global batch size (b). The computation part, the main component is gemm involved in self-attention layers and MLP layers. The communication from two parts, once is from tensor parallelization (allreduce in the TP group), and the other is from data parallelism (allreduce in the DP group). There are also send/recv p2p communication from pipeline parallelism. 
+The computational complexity of the model is determined by the hidden dimension (d), sequence length (s), global batch size (b). The computation part, the main component is gemm involved in self-attention layers and MLP layers. The communication from two parts, once is from tensor parallelization (allreduce in the TP group), and the other is from data parallelism (allreduce in the DP group). There are also send/recv p2p communication from pipeline parallelism. The detailed modeling and projection report is at:  
+[LLM_modeling_and_projection-LLM.pdf](https://github.com/argonne-lcf/alcf4_aibenchmarks/blob/main/LLM/Training/LLM_modeling_and_projection-LLM.pdf)
 
 ### Time to solution
 
