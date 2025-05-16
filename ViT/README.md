@@ -14,6 +14,7 @@ forward layers. We can extend the work to include the decoder architecture in th
 ## Steps to Run
 Instructions are in the readme of submodule [here](https://github.com/Eugene29/Megatron-DeepSpeed_ViT/blob/794237fd851b4c268b4b07cd87685306fef986ba/README.md).
 ## FOM
+The detailed modeling and projection report is at: [ViT-Performance_Modeling.pdf](https://github.com/argonne-lcf/alcf4_aibenchmarks/blob/main/ViT/ViT_modeling_and_projection.pdf)
  ```math
  FOM = \frac{ b_sL(N^2 d+6 d^2 N)}{T} 
 ```
