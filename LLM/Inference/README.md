@@ -88,7 +88,8 @@ Simplly run `run-fom.sh` script. This scripts serves `meta-llama/Llama-3.1-405B-
     `max-model-len` for all scneraios is `32768`
 
 ## Figure of Merit 
-Since inference includes two phases, prefill (compute-bound) and decode (memory bandwidth-bound), we introduce problem complexities (C) separately for two phases.
+Since inference includes two phases, prefill (compute-bound) and decode (memory bandwidth-bound), we introduce problem complexities (C) separately for two phases. The detailed modeling and projection report is at: 
+[LLM_Inference_Performance.pdf](https://github.com/argonne-lcf/alcf4_aibenchmarks/blob/main/LLM/Inference/LLM_Inference_FOM.pdf)
 
 ```math
 C_{prefill} = { b N (6d^2 T_{in} + d T_{in}^2)}
