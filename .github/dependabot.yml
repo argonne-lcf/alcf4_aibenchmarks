@@ -1,0 +1,6 @@
+version: 2
+updates:
+  - package-ecosystem: "git-submodule"
+    directory: "/"            # wherever your .gitmodules lives
+    schedule:
+      interval: "daily"       # or "weekly", etc.
