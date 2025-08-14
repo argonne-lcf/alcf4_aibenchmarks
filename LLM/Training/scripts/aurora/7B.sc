@@ -87,7 +87,7 @@ export TRACE_DIR=${PBS_O_WORKDIR}/outputs/${OUTPUT_PREFIX}/$DATE_TAG/trace/
 export TOKENIZER_MODEL=../common/tokenizer.model 
 
 export DS_CONFIG=${PBS_O_WORKDIR}/ds_config.$JOBID.json
-#export DS_CONFIG=${PBS_O_WORKDIR}/ds_config.json
+export CHECKPOINT_DIR=${PBS_O_WORKDIR}/checkpoints/${OUTPUT_PREFIX}/$DATE_TAG
 
 export JOBSIZE=${JOBSIZE:-$PBS_JOBSIZE}
 export DATA_CACHE_PATH=${PBS_O_WORKDIR}/data_cache_path_n${PBS_JOBSIZE}_s${SEQ_LENGTH}_ns${TRAIN_SAMPLES}/
