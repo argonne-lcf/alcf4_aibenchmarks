@@ -1,7 +1,6 @@
 #!/bin/sh
 #PBS -l walltime=1:00:00
-#PBS -A Aurora_deployment
-#PBS -q lustre_scaling
+#PBS -A AuroraGPT
 #PBS -l select=64
 #PBS -l filesystems=flare:home
 #PBS -N 1T
@@ -13,6 +12,8 @@ export USE_DAOS=${USE_DAOS:-"1"}
 export PPN=12
 export CC=icx
 export CXX=icpx
+export CPU_BIND="list:2-4:10-12:18-20:26-28:34-36:42-44:54-56:62-64:70-72:78-80:86-88:94-96"
+
 export PBS_JOBSIZE=$(cat $PBS_NODEFILE | uniq | wc -l)
 source ./conda.sh
 export MD=${PBS_O_WORKDIR}/Megatron-DeepSpeed/
@@ -87,10 +88,7 @@ export TRACE_DIR=${PBS_O_WORKDIR}/outputs/${OUTPUT_PREFIX}/$DATE_TAG/trace/
 export TOKENIZER_MODEL=../common/tokenizer.model 
 
 export DS_CONFIG=${PBS_O_WORKDIR}/ds_config.$JOBID.json
-#export DS_CONFIG=${PBS_O_WORKDIR}/ds_config.json
-export CPU_BIND=list:2-4:10-12:18-20:26-28:34-36:42-44:54-56:62-64:70-72:78-80:86-88:94-96
 
-export PATH=${FILESYSTEM}/Aurora_deployment/AuroraGPT/soft/:$PATH
 export JOBSIZE=${JOBSIZE:-$PBS_JOBSIZE}
 export DATA_CACHE_PATH=${PBS_O_WORKDIR}/data_cache_path_n${PBS_JOBSIZE}_s${SEQ_LENGTH}_ns${TRAIN_SAMPLES}/
 # create checkpoint dir 
