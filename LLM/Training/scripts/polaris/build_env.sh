@@ -12,6 +12,7 @@ NO_COLOR=1 ezpz_setup_env | tee build.log
 export VIRTUAL_ENV=$(dirname $(dirname $(grep "Using python from:" build.log | awk -F': ' '{print $2}' | sed 's/\x1b\[[0-9;]*m//g')))
 source $VIRTUAL_ENV/bin/activate
 python3 -m pip install -e "git+https://github.com/saforem2/ezpz#egg=ezpz" --require-virtualenv
+python3 -m pip install flash-attn --no-build-isolation
 python3 -m pip install deepspeed
 export BASE_PREFIX=$(python3 -c "import sys; print(sys.base_prefix)")
 [ -e $VIRTUAL_ENV/bin/python3-config ] || cp $BASE_PREFIX/bin/python3-config $VIRTUAL_ENV/bin/python3-config

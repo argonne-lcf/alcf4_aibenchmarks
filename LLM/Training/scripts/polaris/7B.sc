@@ -13,7 +13,7 @@ export PPN=4
 export CC=mpicc
 export CXX=mpicxx
 export CPU_BIND="depth -d 16"
-
+export WANDB_MODE=disabled
 export PBS_JOBSIZE=$(cat $PBS_NODEFILE | uniq | wc -l)
 source ./conda.sh
 export MD=${PBS_O_WORKDIR}/Megatron-DeepSpeed/
@@ -51,7 +51,7 @@ export TP=${TP:-1}
 export PP=${PP:-1}
 export MBS=${MBS:-1}
 export OPT=${OPT:-"adamw"}
-export ZERO_STAGE=${ZERO_STAGE:-1}
+export ZERO_STAGE=${ZERO_STAGE:-2}
 export GRADIENT_ACC=${GAS:-$((8*PP))}
 export MICS_SHARD_SIZE=${MICS_SHARD_SIZE:-12}
 export SAVE_INTERVAL=${SAVE_INTERVAL:-5}
@@ -65,7 +65,7 @@ export TRAIN_SAMPLES=$((TRAIN_ITERS*BS))
 
 echo "BS: $BS - PP:$PP - TP: $TP, PBS_JOBSIZE: $PBS_JOBSIZE"
 
-MODEL=1T
+MODEL=7B
 OUTPUT_PREFIX=${MODEL}_z${ZERO_STAGE}_seqlen${SEQ_LENGTH}_mp${MP}_pp${PP}_sp${SP}_nl${NUM_LAYERS}_hs${HIDDEN_SIZE}_gb${BS}_mb${MBS}_opt${OPT}
 
 mkdir -p ${PBS_O_WORKDIR}/outputs/${OUTPUT_PREFIX}/$DATE_TAG
@@ -79,7 +79,7 @@ sed -e "s/STAGE/$ZERO_STAGE/g" \
     -e "s/ALLGATHER_BUCKET_SIZE/5e8/g" \
     -e "s/REDUCE_BUCKET_SIZE/3e7/g" \
     -e "s/OVERLAP_COMM/false/g" \
-    -e "s/GRADIENT_ACC/$GRADIENT_ACC/g" ../common/DEEPSPEED_CONFIG_TEMPLATE.json > ds_config.$JOBID.json
+    -e "s/GRADIENT_ACC/$GRADIENT_ACC/g" ./DEEPSPEED_CONFIG_TEMPLATE.json > ds_config.$JOBID.json
     
 export DATA_FILE_LIST=./dolma_v1_7.txt
 export TENSORBOARD_DIR=${PBS_O_WORKDIR}/outputs/${OUTPUT_PREFIX}/$DATE_TAG/tensorboard/ 
@@ -117,7 +117,7 @@ mpiexec -np $((PBS_JOBSIZE*PPN)) --ppn $PPN --cpu-bind $CPU_BIND ../common/local
       --data-cache-path $DATA_CACHE_PATH \
       --tokenizer-model $TOKENIZER_MODEL \
       --tensor-model-parallel-size ${TP} --pipeline-model-parallel-size ${PP} \
-      --bf16 --split 100,0,0   --log-interval 1  --no-bias-gelu-fusion \
+      --fp16 --split 100,0,0   --log-interval 1  --no-bias-gelu-fusion \
       --lr-decay-style cosine  --no-bias-dropout-fusion  --no-masked-softmax-fusion \
       --tokenizer-type Llama2Tokenizer  --no-gradient-accumulation-fusion \
       --accumulate-allreduce-grads-in-fp32  --use-checkpoint-opt_param-scheduler  --log-timers-to-tensorboard \
@@ -127,5 +127,5 @@ mpiexec -np $((PBS_JOBSIZE*PPN)) --ppn $PPN --cpu-bind $CPU_BIND ../common/local
       --swiglu --normalization rmsnorm --disable-bias-linear --timing-log-level 1 --log-timers-to-tensorboard \
       --log-optimizer-states-to-tensorboard --deepspeed-activation-checkpointing \
       --deepspeed --checkpoint-activations --checkpoint-num-layers 1 \
-      --use-flash-attn-builder \
+      --use-flash-attn-v2 \
       --attention-dropout 0 --hidden-dropout=0
