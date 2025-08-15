@@ -4,5 +4,5 @@ This repository contains AI models in the [ALCF-4 Benchmark Suite](https://githu
 1) LLM Training and Inference 
 2) 3D Vision Transformer
 3) DBScan
-4) AICommsBench (AI Communications microbenchmark)
+4) DLComm (AI Communications benchmarks)
 5) DLIO (I/O benchmark)
