@@ -94,7 +94,7 @@ def Benchmark(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Cerebras Inference Benchmark')
+    parser = argparse.ArgumentParser(description='Inference Benchmark')
     
     parser.add_argument('--input-length', type=int, help='Input Length')
     parser.add_argument('--output-length', type=int, help='Output Length')
