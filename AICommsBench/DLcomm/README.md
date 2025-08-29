@@ -13,6 +13,11 @@ Here, we list the reasons why we need this benchmark
 3. **Runtime and Backend Flexibility:** The framework allows rapid reconfiguration of different distributed runtimes (Pytorch/Jax) and CCL backends, as well as fine-grained control of scale-up and scale-out parallelism, algorithms, and payloads through a simple YAML interface, enabling targeted evaluation of network performance under varying software configurations. Built-in correctness verification facilitates early detection of numerical anomalies, such as NaNs, during large-scale operations.
 4. **Comprehensive System Stress Testing:** *DLComm* provides the capability to stress-test a wide range of software, hardware and interconnect components involved in high-performance networking, enabling more thorough and representative system evaluations.
 
+In most AI workloads, the slowest communitcation or the I/O through the network is going to determine the performance of the completion of the epoch, leading to a need for low latency and reliable networks topologies.The straggler communicator in the network is going to determine the performance of the AI workloads and there is a need to quickly dedect failures, straglers and test the collectivies at scale at the python ai frameworks / distributed runtimes level.
+
+The num nodes and num gpus should be full system or max gpu.
+Payload should be 1/4 or 1/2 of the single gpu memory. min 1 GB.
+
 ## FOM
 
 We do not have a strictly defined FOM, but we measure several important characteristic quantities regarding collectives (i.e. Throughput, and latency timing measurement of each collective operations). The metrics obtained from this benchmark should be considered as a separate entity per task within the benchmark and should not be combined as a single averaged value for the entire run.
@@ -67,3 +72,10 @@ Scale out :
 10. Ratio of number of dragon fly groups to compute racks
 11. Adaptive dynamic routing
 12. CCLs Ability to utilize ATL_TRANSPORT layer to ofi/libfabric instead of just mpi-direct
+
+
+## Most used collectives and parallelism strategies
+
+![frequent_collectives](frequent_collectives.png)
+![context_parallelism](context_parallelism.png)
+
