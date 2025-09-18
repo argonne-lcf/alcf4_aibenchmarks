@@ -44,6 +44,9 @@ mpiexec --np ${NRANKS} \
 
 ```
 
+Job Scripts for NCCL and XCCL can be found at https://github.com/argonne-lcf/DLcomm_benchmark/tree/master/examples/6_all_collectives_scale 
+
+
 ## Scale up Vs Scale out configuration
 
 Set `comm_group: within_node` for scaleup benchmarks and `comm_group: across_node` for scale out benchmarks
@@ -73,6 +76,24 @@ Scale out :
 11. Adaptive dynamic routing
 12. CCLs Ability to utilize ATL_TRANSPORT layer to ofi/libfabric instead of just mpi-direct
 
+| Feature                                             | Aurora      | Frontier   |
+|-----------------------------------------------------|-------------|------------|
+| Num Nodes                                           | 10,624      | 9,856      |
+| Num GPUs per node                                   | 12          | 8          |
+| Num NICs per node                                   | 8           | 4          |
+| NIC connected to device                             | Host        | Device     |
+| Per NIC B/W                                         | 200 Gb/s    | 200 Gb/s   |
+| Total Cabinets                                      | 166         | 77         |
+| Global Bandwidth                                    | 1.38 PB/s   | –          |
+| Global Bisection Bandwidth                          | 0.69 PB/s   | –          |
+| Injection Bandwidth                                 | 2.12 PB/s   | –          |
+| Global links from each cabinet to every other cab.  | 2           | 4          |
+| % Non-blocking                                      | 32%         | 67%        |
+
+Total global bisection bandwidth should be as close as possible to injection bandwidth
+
+ 
+Each slingshot link is raw bandwidth
 
 ## Most used collectives and parallelism strategies
 
