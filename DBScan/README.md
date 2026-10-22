@@ -98,6 +98,32 @@ These results are with $n = 669921875 = 875^3$ three-dimensional points per rank
 
 The library versions were ArborX 1.7.99 and Kokkos 4.5.1.
 
+### Reproducing these on the current software stack
+
+Neither version is what the current Aurora stack produces: ArborX master is now
+2.x and the prebuilt Kokkos modules are 4.7.02 / 5.1.1. Record the ArborX and
+Kokkos versions alongside any new numbers — the benchmark prints both at
+startup.
+
+With **ArborX 2.1.99 / Kokkos 5.1.1**, the default `fdbscan` implementation
+used for the table above **no longer fits in GPU memory** at this problem size:
+it aborts with `UR_RESULT_ERROR_OUT_OF_RESOURCES` from the Level Zero backend
+on most ranks. On one node it runs up to $839^3$ = 590,589,719 points per rank
+and fails at $874^3$. Reaching the benchmark size on a current build requires
+`--impl fdbscan-densebox`, which is also the faster of the two here:
+
+| Implementation | n (global) | T (seconds) | FOM |
+| :--- | -----------: | ---: | ---: |
+| `fdbscan` (as published, ArborX 1.7.99) | 8,039,062,500 | 21.527 | 1,120,322,734 |
+| `fdbscan` (ArborX 2.1.99) | 8,039,062,500 | — | out of memory |
+| `fdbscan-densebox` (ArborX 2.1.99) | 8,039,062,500 | 9.641 | 2,502,749,502 |
+
+$T$ is the mean of three consecutive runs on one node (9.875, 9.702, 9.347 s;
+5.5% spread), all at the full $875^3$ points per rank, so $n$ matches the
+published table exactly. A current build is about 2.2× the published 1-node
+FOM — but by a different algorithm, so this is not a like-for-like
+reproduction of the row above it.
+
 ## Steps to Run
 This benchmark is part of the [ArborX repository](https://github.com/arborx/ArborX).
 
@@ -110,11 +136,22 @@ page](install.md).
 ```shell
 cd /ArborX/build/benchmarks/cluster
 export CPU_BIND="list:1-8:9-16:17-24:25-32:33-40:41-48:53-60:61-68:69-76:77-84:85-92:93-100"
+export OMP_NUM_THREADS=8 OMP_PROC_BIND=spread OMP_PLACES=threads
 mpiexec --no-transfer -np 12 --ppn 12 --cpu-bind=${CPU_BIND} gpu_tile_compact.sh \
-   ./ArborX_Benchmark_DistributedDBSCAN.exe --eps 5 --dimension 3 --n 669921876 --num-seq 50 --spacing 10
+   ./ArborX_Benchmark_DistributedDBSCAN.exe --eps 5 --dimension 3 --n 669921876 --num-seq 50 --spacing 10 --impl fdbscan-densebox --verbose
 ```
 In the output, `n (global)` corrensponds to $n$ in FOM, and `total time`
-corresponds to $T$.
+corresponds to $T$. Three details that are easy to get wrong:
+
+- `--verbose` is **required**: `total time` is only reported when it is set.
+  Without it the run completes and prints no timing at all.
+- `--n 669921876`, not `669921875`. The generator floors the cube root, and
+  `std::pow(669921875, 1./3.)` is `874.9999999999997` in floating point, so the
+  exact cube silently yields $874^3$ per rank and a smaller problem than this
+  table reports.
+- `--impl fdbscan-densebox` is needed on current ArborX; see above.
+- `OMP_NUM_THREADS` keeps each rank from spawning one host thread per node core
+  (208) onto the 8 cores `--cpu-bind` gives it.
 
 ## References
 [1] [Original DBSCAN paper:](https://cdn.aaai.org/KDD/1996/KDD96-037.pdf)
