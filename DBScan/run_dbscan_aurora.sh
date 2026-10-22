@@ -33,7 +33,18 @@ source "${PBS_O_WORKDIR}/DBScan/env_aurora.sh"
 : "${EPS:=5}"
 : "${NUM_SEQ:=50}"
 : "${SPACING:=10}"
-: "${REPS:=3}"
+# 11 reps: the first is a warmup and is excluded from the statistics, leaving
+# 10 timed runs. Rep 1 pays one-off costs the rest do not -- paging in a 1.2 GB
+# executable from /home, allocator setup and MPI connection setup -- so
+# including it biases both the mean and the spread. It is still recorded and
+# reported as a "run-1 slowdown" ratio, since that startup cost is real and
+# worth tracking.
+#
+# Not SYCL JIT: this build is AOT (-fsycl-targets=spir64_gen -device 12.60.7).
+# Measured directly -- with NEO_CACHE_PERSISTENT=1 and an empty NEO_CACHE_DIR,
+# 12 ranks x 6 reps wrote zero cache files, and cold-vs-warm rep 1 differed by
+# 2.9% against a 10% within-arm spread. The kernel cache flag is a no-op here.
+: "${REPS:=11}"
 
 if [[ ! -x "${EXE}" ]]; then
     echo "ERROR: benchmark not found at ${EXE}" >&2
@@ -57,7 +68,11 @@ echo "=== host: $(hostname)  date: $(date) ==="
 
 for (( rep=1; rep<=REPS; rep++ )); do
     echo
-    echo "########## nodes=${NNODES} rep=${rep}/${REPS} ##########"
+    if (( rep == 1 )); then
+        echo "########## nodes=${NNODES} rep=${rep}/${REPS} (WARMUP, excluded from stats) ##########"
+    else
+        echo "########## nodes=${NNODES} rep=${rep}/${REPS} ##########"
+    fi
     mpiexec --no-transfer -np "${NRANKS}" --ppn "${RANKS_PER_NODE}" \
             --cpu-bind="${CPU_BIND}" gpu_tile_compact.sh \
         "${EXE}" --eps "${EPS}" --dimension 3 --n "${N_PER_RANK}" \
