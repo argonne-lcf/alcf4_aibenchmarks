@@ -125,7 +125,15 @@ echo "############ STAGE 2: training, factor=${factor:-16}, ${NUM_ITERS:-3} iter
 
 export VIT="315M"
 export VIT3D=1
-export fp16=1
+# mds_launch.sh rejects having both set, so default to fp16 only when bf16
+# was not requested (-v bf16=1).
+if [[ "${bf16:-0}" == "1" ]]; then
+    export bf16=1
+    export fp16=0
+else
+    export fp16=1
+    export bf16=0
+fi
 export ZERO=1
 export MBS=1
 export FA=1
