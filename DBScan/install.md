@@ -3,6 +3,18 @@
 The benchmark is a part of the
 [ArborX](https://github.com/arborx/ArborX/) benchmark suite. Here, we provide instructions for building ArborX on Aurora.
 
+**To just build it, run [`build_aurora.sh`](build_aurora.sh):**
+
+```shell
+./DBScan/build_aurora.sh $HOME/dbscan-build
+```
+
+That script does everything on this page — loads the modules, clones ArborX at
+the pinned commit `826d457`, configures and builds the single benchmark target.
+The rest of this page explains what each step does and what goes wrong without
+it, which is what you need if you are adapting this to another system or
+debugging a build that failed.
+
 ## Kokkos
 
 Aurora now provides prebuilt Kokkos modules with the SYCL backend and the PVC
@@ -64,9 +76,10 @@ Then pass `-D Kokkos_ROOT="$PWD/install-kokkos"` below instead of
 
 ## Build ArborX
 You can follow the ArborX build instructions
-[here](https://github.com/arborx/ArborX/wiki/Build). For Aurora, we built the benchmark using the following steps:
+[here](https://github.com/arborx/ArborX/wiki/Build). For Aurora, we built the benchmark using the following steps, which are what [`build_aurora.sh`](build_aurora.sh) automates:
 ```shell
-git clone --depth 1 https://github.com/arborx/ArborX.git source-arborx
+git clone https://github.com/arborx/ArborX.git source-arborx
+git -C source-arborx checkout 826d457
 cmake -S source-arborx -B build-arborx \
      -D Kokkos_ROOT="${KOKKOS_ROOT}" \
      -D Boost_ROOT="${BOOST_ROOT}" \
@@ -81,6 +94,33 @@ cmake --build build-arborx --target ArborX_Benchmark_DistributedDBSCAN.exe --par
 Building just the `ArborX_Benchmark_DistributedDBSCAN.exe` target avoids
 compiling the rest of the benchmark suite. Drop `--target ...` to build
 everything.
+
+Two notes on the clone:
+- **Not `--depth 1`.** A shallow clone of the default branch cannot check out
+  an arbitrary older commit, and `826d457` is not the tip.
+- `826d457` is ArborX 2.1.99, the commit the [README.md](README.md) results
+  were measured with. Pin it to reproduce those numbers; the benchmark prints
+  its ArborX and Kokkos versions at startup, so record what you built if you
+  use a different one.
+
+A clean build took about 13 minutes on a login node (clone included, 16-way
+parallel) and produces a ~1.2 GB executable. Most of that is compiling the
+SYCL device code ahead-of-time for PVC, which is slow here but means there is
+no JIT cost at run time.
+
+Nothing above asks for AOT: `-fsycl-targets=spir64_gen -device 12.60.7` comes
+from the `kokkos/5.1.1-sycl` module's exported CMake interface and propagates
+to the benchmark automatically. Verify with:
+
+```shell
+grep -rhoE '\-fsycl-targets=[^;" ]*|\-device [0-9.]+' \
+    "${KOKKOS_ROOT}"/lib*/cmake/Kokkos/*.cmake | sort -u
+```
+
+A Kokkos built without those flags produces a much smaller executable that
+JIT-compiles on first use — the per-run startup cost then becomes real, and
+`NEO_CACHE_PERSISTENT=1` starts to matter (with this module it is a no-op;
+see [README.md](README.md#repetitions-and-run-to-run-variation)).
 
 # Running the benchmark
 
@@ -110,7 +150,15 @@ qsub -l select=8  -q debug-scaling -A <project> DBScan/run_dbscan_aurora.sh
 qsub -l select=64 -q prod          -A <project> DBScan/run_dbscan_aurora.sh
 ```
 
-Defaults are overridable with `-v`, e.g. `-v REPS=5,IMPL=fdbscan`.
+Defaults are overridable with `-v`, e.g. `-v REPS=5,IMPL=fdbscan`. Submitted by
+hand like this, the jobscript looks for `env_aurora.sh` and the executable
+relative to `$PBS_O_WORKDIR`, so submit from the top of the repository, or pass
+`-v ENV_SH=...,EXE=...` explicitly.
+
+For the full study, use [`submit_scaling_aurora.sh`](submit_scaling_aurora.sh)
+instead — it handles queue routing, the one-queued-job limit on the debug
+queues, and the `filesystems` request. See
+[README.md](README.md#steps-to-run).
 
 `--verbose` is **required to collect the FOM**. The `total time` line — $T$ in
 the FOM — is only printed when it is set; without it the run completes but

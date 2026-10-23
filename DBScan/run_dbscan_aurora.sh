@@ -1,5 +1,8 @@
 #!/bin/bash -l
 #PBS -l walltime=00:30:00
+# Our build lived on /home. If yours is on /lus/flare, override at submit time:
+#   qsub -l filesystems=home:flare ...
+# A job that needs a filesystem it did not request is held, not failed.
 #PBS -l filesystems=home
 #PBS -j oe
 #PBS -N dbscan
@@ -24,7 +27,17 @@
 #                    under ArborX 2.x; fdbscan-densebox fits and is faster
 
 cd "${PBS_O_WORKDIR}"
-source "${PBS_O_WORKDIR}/DBScan/env_aurora.sh"
+
+# PBS runs a *copy* of this script out of its spool directory, so $BASH_SOURCE
+# cannot locate env_aurora.sh. submit_scaling_aurora.sh passes ENV_SH; the
+# fallback covers a hand qsub from the top of the repo.
+: "${ENV_SH:=${PBS_O_WORKDIR}/DBScan/env_aurora.sh}"
+if [[ ! -r "${ENV_SH}" ]]; then
+    echo "ERROR: cannot read ${ENV_SH}" >&2
+    echo "Pass it explicitly:  qsub -v ENV_SH=/path/to/DBScan/env_aurora.sh ..." >&2
+    exit 1
+fi
+source "${ENV_SH}"
 
 # Path to the built benchmark. Override with -v EXE=/path/to/exe
 : "${EXE:=${PBS_O_WORKDIR}/build-arborx/benchmarks/cluster/ArborX_Benchmark_DistributedDBSCAN.exe}"
