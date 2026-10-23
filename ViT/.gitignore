@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+
+# Job output and results land here; keep the measured tables in the README
+# and summarize_results.py output, not the raw logs.
+results/
+*.out
+*.err
