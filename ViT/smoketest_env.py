@@ -11,8 +11,29 @@ import os
 import sys
 import traceback
 
-RANK = int(os.environ.get("PMI_RANK", os.environ.get("RANK", "0")))
-WORLD = int(os.environ.get("PMI_SIZE", os.environ.get("WORLD_SIZE", "1")))
+def _rank_and_world():
+    """Determine (rank, world) before torch.distributed exists.
+
+    mpi4py is authoritative: the job runs under mpiexec and DeepSpeed already
+    depends on MPI here (CCL_KVS_MODE=mpi), so MPI is initialized regardless.
+    The env-var chain is a fallback -- launchers disagree on the names, and
+    guessing wrong silently gives every rank 0, which makes collective checks
+    assert against the wrong expected values rather than fail outright.
+    """
+    try:
+        from mpi4py import MPI
+        comm = MPI.COMM_WORLD
+        return comm.Get_rank(), comm.Get_size()
+    except Exception:
+        pass
+    for r, w in (("PALS_RANKID", "PALS_NRANKS"), ("PMIX_RANK", "PMIX_SIZE"),
+                 ("PMI_RANK", "PMI_SIZE"), ("RANK", "WORLD_SIZE")):
+        if r in os.environ:
+            return int(os.environ[r]), int(os.environ.get(w, "1"))
+    return 0, 1
+
+
+RANK, WORLD = _rank_and_world()
 
 _failures = []
 
@@ -124,12 +145,16 @@ def main():
     # ---- 8. Collectives: allreduce and all_to_all -----------------------
     # all_to_all is the Ulysses primitive. If SP is going to work at scale,
     # it has to work here first.
+    # Take rank/world from the initialized process group rather than the
+    # launcher environment: the group is authoritative, and sizing these
+    # tensors from a wrong guess tests nothing.
     def _allreduce():
         import torch.distributed as dist
+        rank, world = dist.get_rank(), dist.get_world_size()
         dev = torch.device("xpu", torch.xpu.current_device())
-        t = torch.ones(1024, device=dev) * (RANK + 1)
+        t = torch.ones(1024, device=dev) * (rank + 1)
         dist.all_reduce(t)
-        expected = WORLD * (WORLD + 1) / 2
+        expected = world * (world + 1) / 2
         got = t[0].item()
         if abs(got - expected) > 1e-3:
             raise RuntimeError(f"allreduce wrong: got {got}, expected {expected}")
@@ -138,12 +163,14 @@ def main():
 
     def _alltoall():
         import torch.distributed as dist
+        rank, world = dist.get_rank(), dist.get_world_size()
         dev = torch.device("xpu", torch.xpu.current_device())
-        send = torch.full((WORLD, 16), float(RANK), device=dev)
+        # dim 0 must be divisible by world size: one row per destination rank.
+        send = torch.full((world, 16), float(rank), device=dev)
         recv = torch.empty_like(send)
         dist.all_to_all_single(recv, send)
         # row i of recv should hold the value i (sent by rank i)
-        for i in range(WORLD):
+        for i in range(world):
             if abs(recv[i][0].item() - i) > 1e-3:
                 raise RuntimeError(f"all_to_all row {i}: got {recv[i][0].item()}, want {i}")
         return "all_to_all correct (Ulysses primitive)"
@@ -152,7 +179,9 @@ def main():
     # ---- summary --------------------------------------------------------
     import torch.distributed as dist
     nfail = torch.tensor([len(_failures)], dtype=torch.int32)
+    world = WORLD
     if dist.is_initialized():
+        world = dist.get_world_size()
         nfail = nfail.to(torch.device("xpu", torch.xpu.current_device()))
         dist.all_reduce(nfail)
     total = int(nfail.item())
@@ -160,9 +189,9 @@ def main():
     if RANK == 0:
         print("=" * 72)
         if total == 0:
-            print("RESULT: all checks PASSED on all ranks")
+            print(f"RESULT: all checks PASSED on all {world} ranks")
         else:
-            print(f"RESULT: {total} check failure(s) across {WORLD} ranks")
+            print(f"RESULT: {total} check failure(s) across {world} ranks")
         print("=" * 72)
     return 1 if total else 0
 
