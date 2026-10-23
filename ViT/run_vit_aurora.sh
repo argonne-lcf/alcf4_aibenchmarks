@@ -103,6 +103,17 @@ echo "=== host: $(hostname)  date: $(date) ==="
 echo "=== results: ${RESULTS_DIR} ==="
 echo
 
+# Record that this run is on the GPUs before timing anything. A CPU fallback
+# produces the same TFLOPS line, so the FOM alone cannot distinguish them;
+# this writes the evidence into every result. It is a few seconds on one node
+# and is informational -- a failure here does not stop the sweep.
+echo "--- GPU residency ---"
+mpiexec --envall -n "${RANKS_PER_NODE}" --ppn "${RANKS_PER_NODE}" \
+        --cpu-bind="${CPU_BIND}" \
+    python3 "${ViT_DIR}/gpu_residency.py" \
+    2>&1 | tee "${RESULTS_DIR}/gpu_residency_n${NNODES}_rep${REP}.log"
+echo
+
 # mds_launch.sh writes its DeepSpeed config into PBS_O_WORKDIR and resolves
 # the model script relative to it, so it has to run with the submodule as the
 # working directory. Save the real one first -- it is how we found the repo.

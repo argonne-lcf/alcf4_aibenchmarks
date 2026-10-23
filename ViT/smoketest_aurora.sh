@@ -108,6 +108,13 @@ if (( STAGE1 != 0 )); then
     exit "${STAGE1}"
 fi
 
+echo
+echo "############ GPU residency evidence ############"
+mpiexec --envall -n "${NRANKS}" --ppn "${RANKS_PER_NODE}" \
+        --cpu-bind="${CPU_BIND}" \
+    python3 "${ViT_DIR}/gpu_residency.py"
+echo "=== gpu residency exit: $? ==="
+
 if [[ "${SKIP_TRAIN:-0}" == "1" ]]; then
     echo "SKIP_TRAIN=1 set; stopping after environment checks."
     exit 0
