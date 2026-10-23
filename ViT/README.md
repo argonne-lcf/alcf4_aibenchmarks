@@ -178,11 +178,32 @@ evidence via `ViT/gpu_residency.py`, written to
 3. A matmul differs **bitwise** from the same matmul on CPU — a different
    arithmetic unit ran it, not merely a different dispatch label.
 4. The achieved rate against CPU peak. An Aurora node's two Xeon Max sockets
-   peak near 4 TFLOPS fp32; the measured ViT rate is ~774 TFLOPS/node, ~190x.
-   No dispatch bug moves a CPU two orders of magnitude.
+   peak near 4 TFLOPS fp32. The probe's own dense fp16 matmul measures
+   182-191 TFLOPS per tile (~2,200 TFLOPS/node, 545x CPU peak), and the ViT
+   benchmark itself sustains ~774 TFLOPS/node. No dispatch bug moves a CPU
+   two orders of magnitude.
+
+Measured output, one node:
+
+```
+  device_name....................... Intel(R) Data Center GPU Max 1550
+  device_count...................... 12
+  total_memory_GiB.................. 63.98
+  bitwise_identical_to_cpu.......... False
+  matmul_TFLOPS_fp16_per_tile....... 181.7
+  implied_node_TFLOPS............... 2180.6
+  vs_cpu_peak....................... 545.2
+  verdict........................... GPU CONFIRMED
+```
 
 Run it standalone inside a job with
 `mpiexec -n 12 --ppn 12 python3 ViT/gpu_residency.py`.
+
+Note the probe binds its own tile from the launcher's local rank. It runs
+before `deepspeed.init_distributed()`, and the training script takes its
+device from `dist.get_local_rank()` later, so without that binding all 12
+ranks would land on tile 0 and report a rate deflated by contention
+(~14 TFLOPS/tile instead of ~190).
 
 ## Correctness notes
 
@@ -256,6 +277,20 @@ for a stable number. Fixed startup overhead is ~27 s per run.
 `UR_RESULT_ERROR_OUT_OF_RESOURCES` before the first iteration, confirming that
 262K tokens genuinely do not fit on one tile unsharded and that the sequence
 parallelism is doing real work rather than being decorative.
+
+### fp16 vs bf16
+
+The canonical configuration is fp16. bf16 was measured as a cross-check once
+the positional encoding was fixed — both now train cleanly at 262K tokens, and
+fp16 is the faster of the two, so there is no reason to depart from the
+canonical definition:
+
+| precision | s/iter | TFLOPS/tile | loss | grad norm | skipped | NaN |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| fp16 | 80.9 | 56.28 | 3.71 | 24.4 | 0 | 0 |
+| bf16 | 86.6 | 52.56 | 3.40 | 24.8 | 0 | 0 |
+
+bf16 remains available via `-v bf16=1` on the smoke test.
 
 ### Weak scaling
 

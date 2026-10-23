@@ -45,6 +45,24 @@ def _rank():
         return 0
 
 
+def _local_rank(rank):
+    """Which tile this rank owns.
+
+    This script runs before deepspeed.init_distributed(), so torch.xpu's
+    current device is still 0 on every rank -- binding happens inside the
+    training script, which takes its device from dist.get_local_rank(). Left
+    alone, all 12 ranks would benchmark tile 0 at once and report a rate
+    deflated by the contention rather than the tile's real throughput.
+    """
+    for name in ("PALS_LOCAL_RANKID", "MPI_LOCALRANKID", "LOCAL_RANK",
+                 "OMPI_COMM_WORLD_LOCAL_RANK"):
+        if name in os.environ:
+            return int(os.environ[name])
+    # PALS does not always export a local id; ranks are assigned to nodes in
+    # contiguous blocks of RANKS_PER_NODE, so derive it.
+    return rank % RANKS_PER_NODE
+
+
 def residency_report():
     """Collect the evidence. Returns a dict; raises nothing."""
     import torch
@@ -58,7 +76,8 @@ def residency_report():
         rep["verdict"] = "NO XPU -- this run would be a CPU fallback"
         return rep
 
-    dev = torch.xpu.current_device()
+    dev = _local_rank(rep["rank"]) % torch.xpu.device_count()
+    torch.xpu.set_device(dev)
     props = torch.xpu.get_device_properties(dev)
     rep["device_index"] = dev
     rep["device_count"] = torch.xpu.device_count()
