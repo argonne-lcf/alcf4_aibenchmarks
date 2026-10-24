@@ -1,0 +1,5 @@
+# PBS writes job stdout/stderr next to where qsub ran (-j oe), which is the
+# repo root. The measured numbers belong in the benchmark READMEs and in
+# summarize_results.py output, not as committed logs.
+*.o[0-9]*
+*.e[0-9]*
