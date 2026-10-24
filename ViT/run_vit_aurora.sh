@@ -123,13 +123,14 @@ cd "${ViT_ROOT}"
 
 # factor:SP:iters:min_nodes, per the canonical FOM definition.
 #
-# min_nodes is a practicality floor, not a correctness one. Ulysses divides
-# the fixed attention work across SP ranks, so a sequence length costs about
-# the same in node-hours at any scale but takes proportionally longer on
-# fewer nodes. factor=120 satisfies its SP=24 constraint at 2 nodes, but
-# would need over a day of walltime there; it only becomes schedulable
-# around 32 nodes. Set FORCE_ALL=1 to ignore these floors.
-ALL_POINTS="16:1:40:1 24:1:40:1 32:1:40:1 64:4:20:1 120:24:20:32"
+# min_nodes is a hard floor: SP ranks must exist, and SP=24 needs 2 Aurora
+# nodes. It is NOT a walltime floor. An earlier version set 32 here on the
+# theory that more nodes shorten the run; that was wrong. Ulysses pins
+# per-iteration time to the sequence length and SP, so adding nodes adds
+# data-parallel replicas (more samples per iteration) at identical wall
+# clock. factor=120 takes ~1106 s/iteration at 2 nodes and at 2048.
+# Set FORCE_ALL=1 to ignore these floors.
+ALL_POINTS="16:1:40:1 24:1:40:1 32:1:40:1 64:4:20:1 120:24:20:2"
 # qsub -v cannot carry spaces, so submit_scaling_aurora.sh passes a subset
 # underscore-separated ("32_64"). Accept either form.
 FACTORS="${FACTORS//_/ }"
