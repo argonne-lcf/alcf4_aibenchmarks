@@ -64,15 +64,21 @@ NRANKS=$(( NNODES * RANKS_PER_NODE ))
 # stack no longer uses (native XCCL instead). They are kept here so the smoke
 # test matches the launcher; whether they still do anything under XCCL is an
 # open question and is deliberately one of the things this run informs.
-export CCL_WORKER_AFFINITY=1,9,17,25,33,41,53,61,69,77,85,93
 export CPU_BIND="list:2-8:10-16:18-24:26-32:34-40:42-48:54-60:62-68:70-76:78-84:86-92:94-100"
 export NUMEXPR_MAX_THREADS=7
 export OMP_NUM_THREADS=7
-
-export CCL_KVS_MODE=mpi
-export CCL_KVS_CONNECTION_TIMEOUT=600
 export PALS_PMI=pmix
-export CCL_ATL_TRANSPORT=mpi
+
+# -v NO_CCL_TUNING=1 drops the legacy CCL_* settings entirely, to test
+# whether they are what breaks SP=24 at iteration 2.
+if [[ "${NO_CCL_TUNING:-0}" != "1" ]]; then
+    export CCL_WORKER_AFFINITY=1,9,17,25,33,41,53,61,69,77,85,93
+    export CCL_KVS_MODE=mpi
+    export CCL_KVS_CONNECTION_TIMEOUT=600
+    export CCL_ATL_TRANSPORT=mpi
+else
+    echo "NO_CCL_TUNING=1: leaving CCL_* unset, using library defaults"
+fi
 
 # In an ensemble the member sets these to its own slice; keep any value
 # already in the environment (see submit_ensemble_aurora.sh).
