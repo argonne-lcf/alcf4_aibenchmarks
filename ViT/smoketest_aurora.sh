@@ -74,8 +74,10 @@ export CCL_KVS_CONNECTION_TIMEOUT=600
 export PALS_PMI=pmix
 export CCL_ATL_TRANSPORT=mpi
 
-export MASTER_ADDR=$(hostname)
-export MASTER_PORT=$(( RANDOM + 1024 ))
+# In an ensemble the member sets these to its own slice; keep any value
+# already in the environment (see submit_ensemble_aurora.sh).
+export MASTER_ADDR="${MASTER_ADDR:-$(hostname)}"
+export MASTER_PORT="${MASTER_PORT:-$(( RANDOM + 1024 ))}"
 export WANDB_MODE=disabled
 
 echo "=== ViT environment smoke test ==="
