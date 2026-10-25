@@ -82,12 +82,14 @@ if [[ -z "${WALLTIME}" ]]; then
     WALLTIME=$(printf '%02d:%02d:00' $(( secs / 3600 )) $(( (secs % 3600) / 60 + 1 )))
 fi
 
+# small, medium and large are from_route_only: qsub refuses them directly
+# ("Access to queue is denied") and they are reachable only through the prod
+# router, which sizes the job itself. So anything at or above 256 nodes goes
+# to prod; below that, the 1 h debug queues are the only option.
 queue_for() {
     local n=$1
-    if   (( n < 256 ));   then echo "TOO SMALL FOR PROD"
-    elif (( n <= 1024 )); then echo small
-    elif (( n <= 1999 )); then echo medium
-    else                       echo large
+    if   (( n < 256 )); then echo "TOO SMALL FOR PROD"
+    else                     echo prod
     fi
 }
 
