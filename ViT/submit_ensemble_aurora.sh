@@ -6,7 +6,7 @@
 #
 # Options:
 #   --nodes "2 4 8 ... 128"   node counts to cover   (default: 2..128)
-#   --factor N                sequence point         (default: 120)
+#   --factor "16 24 32 64"    sequence point(s)      (default: 120)
 #   --iters N                 iterations per member  (default: 20)
 #   --reps N                  repetitions            (default: 1)
 #   --alloc N                 nodes per ensemble job (default: 256)
@@ -66,11 +66,17 @@ sec_per_iter() {
     esac
 }
 
-# Members run concurrently, so the job lasts as long as one member, not the
-# sum. Add startup and 50% headroom, then clamp to the queue's ceiling.
+# Members run concurrently, so the job lasts as long as its SLOWEST member,
+# not the sum. Size to the largest factor requested, add startup and 50%
+# headroom, then clamp to the queue ceiling.
 if [[ -z "${WALLTIME}" ]]; then
-    secs=$(awk -v s="$(sec_per_iter "${FACTOR}")" -v n="${ITERS}" \
-               'BEGIN{printf "%d", (s*n + 300) * 1.5}')
+    slowest=0
+    for f in ${FACTOR}; do
+        s=$(awk -v s="$(sec_per_iter "${f}")" -v n="${ITERS}" \
+                'BEGIN{printf "%d", s*n}')
+        (( s > slowest )) && slowest="${s}"
+    done
+    secs=$(awk -v s="${slowest}" 'BEGIN{printf "%d", (s + 300) * 1.5}')
     max=43200                       # small/medium cap at 12 h
     (( secs > max )) && secs="${max}"
     WALLTIME=$(printf '%02d:%02d:00' $(( secs / 3600 )) $(( (secs % 3600) / 60 + 1 )))
@@ -111,7 +117,7 @@ for rep in $(seq 1 "${REPS}"); do
         local members="${batch// /_}"
         local cmd=(qsub -l "select=${ALLOC}" -l "walltime=${WALLTIME}"
                    -q "${q}" -A "${PROJECT}"
-                   -N "vit-ens-f${FACTOR}-r${rep}"
+                   -N "vit-ens-f${FACTOR// /_}-r${rep}"
                    -v "MEMBERS=${members},REP=${rep}"
                    "${REPO_ROOT}/ViT/run_ensemble_aurora.sh")
         echo "# batch: ${batch}  (${used} of ${ALLOC} nodes used)"
@@ -129,16 +135,28 @@ for rep in $(seq 1 "${REPS}"); do
         used=0
     }
 
-    for n in ${NODES}; do
-        if (( n > ALLOC )); then
-            echo "# SKIP n=${n}: larger than --alloc ${ALLOC}"
-            continue
-        fi
-        if (( used + n > ALLOC )); then
-            flush
-        fi
-        batch="${batch:+${batch} }${n}:${FACTOR}:${ITERS}"
-        used=$(( used + n ))
+    for f in ${FACTOR}; do
+        for n in ${NODES}; do
+            # SP must fit in the member's own ranks.
+            case "${f}" in
+                64)  need_sp=4  ;;
+                120) need_sp=24 ;;
+                *)   need_sp=1  ;;
+            esac
+            if (( n * 12 < need_sp )); then
+                echo "# SKIP n=${n} factor=${f}: ${n} node(s) cannot host SP=${need_sp}"
+                continue
+            fi
+            if (( n > ALLOC )); then
+                echo "# SKIP n=${n}: larger than --alloc ${ALLOC}"
+                continue
+            fi
+            if (( used + n > ALLOC )); then
+                flush
+            fi
+            batch="${batch:+${batch} }${n}:${f}:${ITERS}"
+            used=$(( used + n ))
+        done
     done
     flush
 done
