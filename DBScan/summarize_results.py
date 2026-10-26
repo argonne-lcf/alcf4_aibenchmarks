@@ -14,7 +14,12 @@ Each job runs 11 repetitions and the first is discarded. Repetition 1 pays
 one-off costs the others do not -- paging in a ~1.2 GB executable, allocator
 and MPI connection setup -- and including it biases both the median and the
 spread. It is still reported, as the "run-1" ratio, because that startup cost
-is real; it is typically 1.0-1.5x and does not track node count.
+is real. Like every time here it is rank 0's clock, which at large node counts
+can finish the warmup well before the slowest rank does, so the ratio
+understates the warmup cost at scale; see README.md.
+
+A file holding only the warmup (a job that died after rep 1) is skipped with
+a warning rather than reported as a row.
 
 Written for the python3 on the Aurora login nodes (3.6), so no walrus
 operator and no statistics.quantiles.
@@ -96,6 +101,15 @@ def main():
         if nodes is None or not times:
             print("  (skipped %s: no results found)" % path, file=sys.stderr)
             continue
+        # A job that died after one repetition has only the warmup, which is
+        # exactly the run the statistics are meant to exclude. Reporting it as
+        # a row would put an unrepresentative number in the table with nothing
+        # but a "1" in the timed column to say so.
+        if len(times) == 1 and not args.keep_first:
+            print("  (skipped %s: %d nodes has only the warmup repetition;"
+                  " the job likely failed after rep 1)" % (path, nodes),
+                  file=sys.stderr)
+            continue
         if nodes in runs:
             print("  (warning: two files report %d nodes; using %s)"
                   % (nodes, path), file=sys.stderr)
@@ -118,9 +132,14 @@ def main():
 
     def timed(nodes):
         ts = runs[nodes][1]
-        if args.keep_first or len(ts) == 1:
-            return ts
-        return ts[1:]
+        return ts if args.keep_first else ts[1:]
+
+    # A partial job still yields a row, but it should not pass unremarked.
+    full = max(len(timed(n)) for n in runs)
+    for n in sorted(runs):
+        if len(timed(n)) < full:
+            print("  (warning: %d nodes has %d timed repetitions, others have"
+                  " %d)" % (n, len(timed(n)), full), file=sys.stderr)
 
     # Weak scaling keeps work-per-rank fixed, so ideal scaling is constant
     # time and efficiency is T(ref)/T(n), not a speedup.

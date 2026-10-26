@@ -119,6 +119,17 @@ and step 6 (communicate merge pairs) 0.315 → 0.491 s. Those two account for
 0.86 s of the 0.94 s increase. The compute is scaling; the label-reconciliation
 phase is not.
 
+**4096 nodes was attempted and is not in the table.** The job (submitted
+22 Oct, started 24 Oct after ~54 hours in the queue) completed only its warmup
+repetition (15.708 s). One node then stopped responding (`ping failed ... No
+reply ... after 97s`), and repetitions 2–11 all failed to launch
+(`Couldn't forward RPC launch ... Resource temporarily unavailable`, exit 127).
+A lone warmup is the run the statistics exclude, so there is no 4096 result to
+report; `summarize_results.py` skips warmup-only files for this reason. The
+warmup itself was in line with the trend at 1024 and 2048 nodes (see
+[Repetitions](#repetitions-and-run-to-run-variation)), so nothing in it points
+to the node that failed afterward.
+
 > **This table is not comparable to results published before October 2026.**
 > Those used `--impl fdbscan`, which no longer fits in GPU memory at this
 > problem size under ArborX 2.x. See
@@ -171,8 +182,29 @@ executable, allocator and MPI connection setup — and including it biases both
 the median and the spread. It is still recorded, and `summarize_results.py`
 reports it as a `run-1` ratio against the mean of the rest.
 
-That ratio was 1.00–1.52× across the study with **no dependence on node
-count** (1.52× at 256 nodes, 1.17× at 2048). It is not SYCL JIT: the build is
+As measured by `total time`, that ratio was 1.00–1.52× with no clear trend in
+node count (1.52× at 256 nodes, 1.17× at 2048). That understates the warmup
+cost at scale. `total time` is rank 0's clock (see
+[What $T$ measures](#what-t-measures)), and at 512, 2048 and 4096 nodes the
+slowest rank was still in step 1 of the warmup after rank 0 had finished.
+Step 1 (receive global neighbors) is where the warmup cost lands:
+
+| Nodes | warmup step 1, mean over ranks | warmup step 1, slowest rank | timed reps, slowest rank |
+| ---: | ---: | ---: | ---: |
+| 1–64 | 1.5–2.0 s | 1.8–4.5 s | 1.5–2.2 s |
+| 128 | 3.1 s | 4.9 s | 1.5 s |
+| 256 | 2.7 s | 6.0 s | 1.5 s |
+| 512 | 2.8 s | 15.0 s | 1.6 s |
+| 1024 | 3.6 s | 10.3 s | 1.6 s |
+| 2048 | 6.4 s | 18.4 s | 1.6 s |
+| 4096 | 11.9 s | 39.7 s | — |
+
+From 1024 nodes up the warmup's step 1 roughly doubles per doubling of node
+count, while the timed repetitions stay flat. We have not isolated the cause;
+first-use setup of point-to-point connections to remote ranks would fit the
+pattern, but we have not tested that. None of this reaches the results table:
+in the timed repetitions the slowest rank never outlasted rank 0. It is not
+SYCL JIT: the build is
 ahead-of-time compiled for PVC (`-fsycl-targets=spir64_gen -device 12.60.7`,
 inherited from the Kokkos module), and with `NEO_CACHE_PERSISTENT=1` against
 an empty cache directory, 12 ranks × 6 repetitions wrote zero cache files.
@@ -187,6 +219,16 @@ to resolve differences of a few percent.
 clustering call itself. It **excludes** MPI and Kokkos initialization, data
 generation, binary load, and teardown; data generation completes before the
 timed region opens.
+
+It is **rank 0's elapsed time**, not the slowest rank's: the benchmark prints
+rank 0's local timer. Most of the algorithm's exchanges are with neighboring
+ranks rather than global collectives, so rank 0 can finish while a distant rank
+is still working. We checked: in every timed repetition at every node count,
+the slowest rank's longest single step was at most 0.79× rank 0's total, so
+rank 0 was not finishing ahead of a straggler. It did happen in some warmup
+repetitions (see [below](#repetitions-and-run-to-run-variation)). A system with
+a slow or unhealthy node can therefore report an optimistic $T$; compare the
+`MaxOverProcs` column of the step breakdown against `total time` to catch it.
 
 It **includes** the distributed algorithm's communication and label
 reconciliation, which is the point. With `--verbose` the benchmark prints a
@@ -210,7 +252,7 @@ computed from step 2 alone would be about 1.5× larger, but it would measure
 the kernel rather than the distributed algorithm.
 
 Steps do not sum exactly to the total: each is a mean over ranks while the
-total is wall-clock, so load imbalance lands in the gap. The imbalance is real
+total is rank 0's own time, so load imbalance lands in the gap. The imbalance is real
 and not investigated here — at 1 node step 1 ranges 1.30–2.37 s across ranks
 and step 3 ranges 0.011–1.106 s.
 
