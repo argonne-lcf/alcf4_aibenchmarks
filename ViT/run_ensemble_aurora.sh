@@ -14,19 +14,21 @@
 # point, which takes ~7.8 h for 20 iterations at ANY node count (per-iteration
 # time is set by sequence length and SP, not by how many nodes you add).
 #
-# An ensemble closes the gap: ask for 256 nodes in prod, then run the whole
+# An ensemble closes the gap: ask for 512 nodes in prod, then run a whole
 # weak-scaling curve inside it at once.
 #
-#   members 2+4+8+16+32+64+128 = 254 nodes, all concurrent, one 12 h job
+#   members 1+2+4+8+16+32+64+128+256 = 511 nodes, all concurrent, one job
 #
 # Submit via ViT/submit_ensemble_aurora.sh, or directly:
 #
-#   qsub -l select=256 -l walltime=12:00:00 -q prod -A <project> \
-#        -v MEMBERS="2:120:20 4:120:20 8:120:20" ViT/run_ensemble_aurora.sh
+#   qsub -l select=512 -l walltime=10:00:00 -q prod -A <project> \
+#        -v MEMBERS="1:120:20_2:120:20_4:120:20" ViT/run_ensemble_aurora.sh
 #
-# MEMBERS is a space-separated list of nodes:factor:iters. Each member gets
-# a disjoint slice of PBS_NODEFILE and its own log. The job ends when every
-# member has finished; one member failing does not stop the others.
+# MEMBERS is a list of nodes:factor:iters, separated by spaces or (under
+# qsub -v) underscores. Each member gets a disjoint slice of PBS_NODEFILE and
+# its own log. The job ends when every member has finished; one member
+# failing does not stop the others. ViT/test_ensemble_aurora.sh exercises
+# this script on a login node.
 #
 # EXCLUDE_NODES="x4407c5s5b0n0" removes known-bad hosts first; ask for spare
 # nodes to cover them (e.g. select=257 for one 256-node member).
@@ -256,5 +258,6 @@ done
 
 echo
 echo "=== ensemble complete, exit ${overall} ==="
+echo "=== check:     ${PBS_O_WORKDIR}/ViT/check_logs.sh ==="
 echo "=== summarize: python3 ${PBS_O_WORKDIR}/ViT/summarize_results.py ==="
 exit "${overall}"

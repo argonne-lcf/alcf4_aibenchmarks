@@ -21,18 +21,24 @@
 # sequence length, so the small points land in debug/debug-scaling and only
 # factor=120 needs a production queue.
 #
+# Prefer submit_ensemble_aurora.sh, which is how the published results were
+# collected. debug and debug-scaling accept only ONE queued job per user, so
+# this script's ~100 short jobs drip through one at a time, and factor=120
+# below 256 nodes has no queue at all (see queue_for). This script remains
+# useful for a handful of single points.
+#
 # Why one point per job rather than the whole sweep in one:
 #
 #   factor   s/iter   iters   wall      queue
-#       16     0.08      40    ~2 min   debug / debug-scaling
-#       24     0.93      40    ~3 min   debug / debug-scaling
-#       32     5.24      40    ~6 min   debug / debug-scaling
-#       64    80.90      20   ~29 min   debug / debug-scaling
-#      120  1106.00      20   ~6.2 h    small / medium / large
+#       16     0.19      40    ~1 min   debug / debug-scaling
+#       24     1.12      40    ~2 min   debug / debug-scaling
+#       32     5.2       40    ~5 min   debug / debug-scaling
+#       64    81         20   ~28 min   debug / debug-scaling
+#      120  1411         20   ~7.8 h    prod, and only at >=256 nodes
 #
 # Per-iteration time is set by sequence length and SP, NOT by node count:
 # adding nodes adds data-parallel replicas (more samples per iteration), it
-# does not make an iteration finish sooner. So the full sweep is ~6.7 h at
+# does not make an iteration finish sooner. So the full sweep is ~8.4 h at
 # every scale, which never fits the 1 h debug-scaling cap -- but four of its
 # five points fit comfortably on their own.
 #
@@ -68,21 +74,21 @@ while (( $# )); do
     esac
 done
 
-# factor:SP:iters:min_nodes, per the canonical FOM definition.
-# factor=120 needs SP=24, i.e. 24 ranks, i.e. 2 Aurora nodes.
+# factor:SP:iters:min_nodes, matching run_vit_aurora.sh. factor=120 runs
+# SP=12 (one node's 12 tiles) so the 12-head model satisfies heads % SP == 0.
 points_for() {
-    echo "16:1:40:1 24:1:40:1 32:1:40:1 64:4:20:1 120:24:${ITERS120}:2"
+    echo "16:1:40:1 24:1:40:1 32:1:40:1 64:4:20:1 120:12:${ITERS120}:1"
 }
 
-# Measured seconds per iteration (1 node, fp16, 24 heads). Used only to size
+# Measured seconds per iteration (1 node, fp16, 12 heads). Used only to size
 # walltime; the sweep itself measures these properly.
 sec_per_iter() {
     case "$1" in
-        16)  echo 0.08 ;;
-        24)  echo 0.93 ;;
-        32)  echo 5.24 ;;
-        64)  echo 80.9 ;;
-        120) echo 1106 ;;
+        16)  echo 0.19 ;;
+        24)  echo 1.12 ;;
+        32)  echo 5.2 ;;
+        64)  echo 81 ;;
+        120) echo 1411 ;;
     esac
 }
 
@@ -104,27 +110,24 @@ walltime_for() {
 # once, and between them they leave a gap:
 #
 #   debug <=2 nodes, debug-scaling <=256 nodes -- both capped at 1 h walltime
-#   prod (routes to small/medium/large) requires >=256 nodes, allows 12-24 h
+#   prod requires >=256 nodes, allows 12-24 h
 #
 # So a job needing more than an hour on fewer than 256 nodes has no queue to
-# go to. That is exactly factor=120 (~6.2 h for 20 iterations at any scale),
-# which is why it cannot be run below 256 nodes at the canonical iteration
-# count. Returns the queue name, or "none" when nothing accepts the job.
+# go to. That is exactly factor=120 (~7.8 h for 20 iterations at any scale),
+# which is why it cannot be run below 256 nodes as a single job; ensembles
+# (submit_ensemble_aurora.sh) are the way round it. small, medium and large
+# are from_route_only -- qsub to them directly is refused -- so everything at
+# 256+ nodes goes through prod, which routes by size itself. Returns the
+# queue name, or "none" when nothing accepts the job.
 queue_for() {
     local n=$1 wt=$2
     local hours=${wt%%:*}
     if (( 10#${hours} >= 1 )); then
-        if   (( n < 256 ));   then echo none
-        elif (( n <= 1024 )); then echo small
-        elif (( n <= 1999 )); then echo medium
-        else                       echo large
-        fi
+        if (( n < 256 )); then echo none; else echo prod; fi
     else
         if   (( n <= 2 ));   then echo debug
         elif (( n <= 256 )); then echo debug-scaling
-        elif (( n <= 1024 )); then echo small
-        elif (( n <= 1999 )); then echo medium
-        else                       echo large
+        else                      echo prod
         fi
     fi
 }
