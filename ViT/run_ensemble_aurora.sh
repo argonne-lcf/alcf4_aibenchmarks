@@ -30,6 +30,9 @@
 #
 # EXCLUDE_NODES="x4407c5s5b0n0" removes known-bad hosts first; ask for spare
 # nodes to cover them (e.g. select=257 for one 256-node member).
+#
+# EXIT_GRACE=180 is how long a member may linger after logging "after
+# training is done" before the exit watchdog stops it (see below).
 
 cd "${PBS_O_WORKDIR}"
 
@@ -119,6 +122,7 @@ offset=0
 member_idx=0
 pids=()
 names=()
+logs=()
 
 for m in ${MEMBERS}; do
     IFS=: read -r n f iters <<< "${m}"
@@ -174,11 +178,14 @@ for m in ${MEMBERS}; do
         export ACT_CKPT="${ckpt}"
         export NUM_ITERS="${iters}"
         cd "${ViT_ROOT}"
-        bash "${ViT_ROOT}/mds_launch.sh"
+        # Its own session and process group (pgid == this pid), so the exit
+        # watchdog below can signal one member without touching the others.
+        exec setsid -w bash "${ViT_ROOT}/mds_launch.sh"
     ) > "${log}" 2>&1 &
 
     pids+=($!)
     names+=("n${n}_f${f}")
+    logs+=("${log}")
     member_idx=$(( member_idx + 1 ))
     echo
 done
@@ -191,12 +198,57 @@ fi
 echo "=== ${#pids[@]} member(s) launched, waiting ==="
 echo
 
+# Exit watchdog. Members often finish training and then never exit: the log
+# has the last iteration and "after training is done", but mpiexec does not
+# return for 10-20+ minutes, holding the member's nodes and running the job
+# into its walltime. Clean exits take under 30 s after that line, so a member
+# still running EXIT_GRACE seconds later is stopped: SIGTERM to its process
+# group (mpiexec forwards it to every rank), SIGKILL 30 s after that. Nothing
+# is lost -- every timed iteration is logged before the marker -- and a member
+# that dies before the marker is still reported as a failure.
+: "${EXIT_GRACE:=180}"
+: "${EXIT_POLL:=15}"
+DONE_MARK="after training is done"
+
+running() {
+    [[ -d "/proc/$1" ]] && ! grep -q '^State:[[:space:]]*Z' "/proc/$1/status" 2>/dev/null
+}
+
+declare -A trained_at stopped_at killed
+while :; do
+    alive=0
+    for i in "${!pids[@]}"; do
+        pid="${pids[$i]}"
+        running "${pid}" || continue
+        alive=1
+        if [[ -z "${trained_at[$i]:-}" ]] && grep -q "${DONE_MARK}" "${logs[$i]}"; then
+            trained_at[$i]="${SECONDS}"
+        fi
+        [[ -n "${trained_at[$i]:-}" ]] || continue
+        if [[ -z "${stopped_at[$i]:-}" ]] && (( SECONDS - trained_at[$i] >= EXIT_GRACE )); then
+            echo "member ${names[$i]}: trained, still running ${EXIT_GRACE}s later -- sending SIGTERM"
+            kill -TERM -- "-${pid}" 2>/dev/null
+            stopped_at[$i]="${SECONDS}"
+        elif [[ -n "${stopped_at[$i]:-}" && -z "${killed[$i]:-}" ]] \
+                && (( SECONDS - stopped_at[$i] >= 30 )); then
+            echo "member ${names[$i]}: ignored SIGTERM -- sending SIGKILL"
+            kill -KILL -- "-${pid}" 2>/dev/null
+            killed[$i]=1
+        fi
+    done
+    (( alive )) || break
+    sleep "${EXIT_POLL}"
+done
+
 overall=0
 for i in "${!pids[@]}"; do
-    if wait "${pids[$i]}"; then
+    wait "${pids[$i]}"
+    rc=$?
+    if (( rc == 0 )); then
         echo "member ${names[$i]}: exit 0"
+    elif [[ -n "${stopped_at[$i]:-}" ]]; then
+        echo "member ${names[$i]}: trained; stopped at exit by the watchdog (exit ${rc})"
     else
-        rc=$?
         echo "member ${names[$i]}: exit ${rc}  <-- FAILED"
         overall="${rc}"
     fi
