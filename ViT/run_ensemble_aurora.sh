@@ -11,7 +11,7 @@
 # debug-scaling (<=256 nodes) both cap at 1 h walltime, while prod routes
 # only jobs of 256+ nodes. A run needing more than an hour on fewer than 256
 # nodes therefore has no queue at all -- and that is exactly the 1.73M-token
-# point, which takes ~6.2 h for 20 iterations at ANY node count (per-iteration
+# point, which takes ~7.8 h for 20 iterations at ANY node count (per-iteration
 # time is set by sequence length and SP, not by how many nodes you add).
 #
 # An ensemble closes the gap: ask for 256 nodes in prod, then run the whole
@@ -105,11 +105,23 @@ names=()
 
 for m in ${MEMBERS}; do
     IFS=: read -r n f iters <<< "${m}"
+    # factor=120 at SP=12 keeps the 12-head model on one node's 12 tiles, and
+    # needs activation recompute to fit: 27.7 GB peak per tile with it. The
+    # FOM counts model FLOPs only, so recompute costs time, not credit.
     sp=1
+    ckpt=0
     case "${f}" in
         64)  sp=4  ;;
-        120) sp=24 ;;
+        120) sp=12; ckpt=1 ;;
     esac
+
+    # 12 heads is the benchmark model. Ulysses needs heads % SP == 0, so a
+    # point whose SP does not divide 12 has to run more heads -- a different,
+    # slower model (see mds_launch.sh), tagged _h<heads> in its log name.
+    heads=12
+    (( 12 % sp != 0 )) && heads="${sp}"
+    htag=""
+    (( heads != 12 )) && htag="_h${heads}"
 
     nranks=$(( n * RANKS_PER_NODE ))
     if (( sp > nranks )) || (( nranks % sp != 0 )); then
@@ -122,8 +134,8 @@ for m in ${MEMBERS}; do
     tail -n +$(( offset + 1 )) "${PBS_NODEFILE}" | head -n "${n}" > "${slice}"
     offset=$(( offset + n ))
 
-    log="${RESULTS_DIR}/vit_n${n}_factor${f}_sp${sp}_rep${REP}.log"
-    echo "######## member ${member_idx}: ${n} nodes, factor=${f}, SP=${sp}, ${iters} iters"
+    log="${RESULTS_DIR}/vit_n${n}_factor${f}_sp${sp}${htag}_rep${REP}.log"
+    echo "######## member ${member_idx}: ${n} nodes, factor=${f}, SP=${sp}, heads=${heads}, ${iters} iters"
     echo "         nodes: $(tr '\n' ' ' < "${slice}")"
     echo "         log:   ${log}"
 
@@ -141,6 +153,8 @@ for m in ${MEMBERS}; do
         export MASTER_PORT=$(( 3442 + member_idx * 7 ))
         export factor="${f}"
         export SP="${sp}"
+        export VIT_HEADS="${heads}"
+        export ACT_CKPT="${ckpt}"
         export NUM_ITERS="${iters}"
         cd "${ViT_ROOT}"
         bash "${ViT_ROOT}/mds_launch.sh"

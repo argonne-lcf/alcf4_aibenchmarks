@@ -16,7 +16,7 @@
 #
 # Aurora's queues leave a gap that single-point jobs cannot cross: debug
 # (<=2 nodes) and debug-scaling (<=256 nodes) cap at 1 h walltime, while prod
-# routes only jobs of 256+ nodes. The 1.73M-token point needs ~6.2 h for 20
+# routes only jobs of 256+ nodes. The 1.73M-token point needs ~7.8 h for 20
 # iterations at ANY node count -- per-iteration time is set by sequence length
 # and SP, not by node count -- so on fewer than 256 nodes it has nowhere to
 # run.
@@ -61,8 +61,8 @@ sec_per_iter() {
         24)  echo 0.93 ;;
         32)  echo 5.24 ;;
         64)  echo 80.9 ;;
-        120) echo 1106 ;;
-        *)   echo 1106 ;;
+        120) echo 1411 ;;
+        *)   echo 1411 ;;
     esac
 }
 
@@ -142,7 +142,7 @@ for rep in $(seq 1 "${REPS}"); do
             # SP must fit in the member's own ranks.
             case "${f}" in
                 64)  need_sp=4  ;;
-                120) need_sp=24 ;;
+                120) need_sp=12 ;;
                 *)   need_sp=1  ;;
             esac
             if (( n * 12 < need_sp )); then

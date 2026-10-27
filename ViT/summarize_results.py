@@ -31,8 +31,9 @@ ITER_RE = re.compile(
     r"iteration:(\d+)\s+time:([\d.]+)\s+TFLOPS:([\d.]+)\s+"
     r"TFLOPS_per_gpu:([\d.]+)\s+Samples/Sec:([\d.]+)"
 )
-# vit_n128_factor32_sp1_rep1.log
-NAME_RE = re.compile(r"vit_n(\d+)_factor(\d+)_sp(\d+)_rep(\d+)\.log$")
+# vit_n128_factor32_sp1_rep1.log, or vit_n16_factor120_sp24_h24_rep1.log when
+# the run had to leave the 12-head benchmark model (see mds_launch.sh).
+NAME_RE = re.compile(r"vit_n(\d+)_factor(\d+)_sp(\d+)(?:_h(\d+))?_rep(\d+)\.log$")
 
 RANKS_PER_NODE = 12
 
@@ -80,13 +81,14 @@ def main():
     if not logs:
         sys.exit(f"no vit_n*_factor*_sp*_rep*.log files in {results_dir}")
 
-    # (nodes, factor, sp) -> list of per-repetition summaries
+    # (nodes, factor, sp, heads) -> list of per-repetition summaries
     runs = defaultdict(list)
     incomplete = []
 
     for name in logs:
         m = NAME_RE.search(name)
-        nodes, factor, sp, rep = (int(m.group(i)) for i in (1, 2, 3, 4))
+        nodes, factor, sp, rep = (int(m.group(i)) for i in (1, 2, 3, 5))
+        heads = int(m.group(4) or 12)
         rows = parse_log(os.path.join(results_dir, name))
         kept = [r for r in rows if r[0] > args.warmup]
         if not kept:
@@ -95,7 +97,7 @@ def main():
         t_mean, t_sd, t_min, t_max = stats([r[1] for r in kept])
         fl_mean = sum(r[2] for r in kept) / len(kept)
         sps_mean = sum(r[4] for r in kept) / len(kept)
-        runs[(nodes, factor, sp)].append({
+        runs[(nodes, factor, sp, heads)].append({
             "rep": rep, "n_iter": len(kept), "t_mean": t_mean, "t_sd": t_sd,
             "t_min": t_min, "t_max": t_max, "tflops": fl_mean, "sps": sps_mean,
         })
@@ -110,14 +112,14 @@ def main():
     # ---- per-configuration detail -------------------------------------
     print(f"Steady-state per configuration (first {args.warmup} iterations discarded)")
     print()
-    hdr = (f"{'nodes':>6} {'factor':>7} {'tokens':>10} {'SP':>4} {'reps':>5} "
+    hdr = (f"{'nodes':>6} {'factor':>7} {'tokens':>10} {'SP':>4} {'heads':>5} {'reps':>5} "
            f"{'s/iter':>9} {'spread':>8} {'TFLOPS':>10} {'TFLOP/tile':>11} {'samp/s':>8}")
     print(hdr)
     print("-" * len(hdr))
 
     csv_rows = []
-    for (nodes, factor, sp) in sorted(runs):
-        entries = runs[(nodes, factor, sp)]
+    for (nodes, factor, sp, heads) in sorted(runs):
+        entries = runs[(nodes, factor, sp, heads)]
         # Across repetitions, take the mean of the per-rep means; report the
         # worst-case spread seen within any single repetition.
         t = sum(e["t_mean"] for e in entries) / len(entries)
@@ -125,30 +127,33 @@ def main():
         sps = sum(e["sps"] for e in entries) / len(entries)
         spread = max((e["t_max"] - e["t_min"]) / e["t_mean"] for e in entries)
         tiles = nodes * RANKS_PER_NODE
-        print(f"{nodes:>6} {factor:>7} {factor**3:>10,} {sp:>4} {len(entries):>5} "
+        print(f"{nodes:>6} {factor:>7} {factor**3:>10,} {sp:>4} {heads:>5} {len(entries):>5} "
               f"{t:>9.3f} {spread*100:>7.1f}% {fl:>10.1f} {fl/tiles:>11.2f} {sps:>8.2f}")
         csv_rows.append({
             "nodes": nodes, "factor": factor, "tokens": factor**3, "sp": sp,
+            "heads": heads,
             "reps": len(entries), "sec_per_iter": round(t, 4),
             "spread_pct": round(spread * 100, 2), "tflops": round(fl, 2),
             "tflops_per_tile": round(fl / tiles, 3), "samples_per_sec": round(sps, 3),
         })
 
-    # ---- weak-scaling view, per sequence length -----------------------
-    by_factor = defaultdict(dict)
-    for (nodes, factor, sp) in runs:
-        entries = runs[(nodes, factor, sp)]
-        by_factor[factor][nodes] = sum(e["tflops"] for e in entries) / len(entries)
+    # ---- weak-scaling view, per configuration -------------------------
+    # A series is one (factor, SP, heads): never mix models in one curve.
+    by_config = defaultdict(dict)
+    for (nodes, factor, sp, heads) in runs:
+        entries = runs[(nodes, factor, sp, heads)]
+        by_config[(factor, sp, heads)][nodes] = (
+            sum(e["tflops"] for e in entries) / len(entries))
 
-    for factor in sorted(by_factor):
-        series = by_factor[factor]
+    for (factor, sp, heads) in sorted(by_config):
+        series = by_config[(factor, sp, heads)]
         if len(series) < 2:
             continue
         base_nodes = min(series)
         base = series[base_nodes] / base_nodes
         print()
         print(f"Weak scaling, factor={factor} ({factor**3:,} tokens), "
-              f"baseline {base_nodes} node(s)")
+              f"SP={sp}, {heads} heads, baseline {base_nodes} node(s)")
         print(f"{'nodes':>6} {'TFLOPS':>12} {'TFLOPS/node':>12} {'efficiency':>11}")
         print("-" * 43)
         for nodes in sorted(series):

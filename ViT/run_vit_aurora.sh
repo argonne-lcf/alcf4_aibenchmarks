@@ -20,7 +20,7 @@
 #   13.8K      24      1     40
 #   32.8K      32      1     40
 #   262K       64      4     20
-#   1.73M     120     24     20
+#   1.73M     120     12     20   (with activation recompute)
 #
 # factor is the number of 16-voxel patches along each edge of the cubic
 # volume, so the token count is factor^3 and the attention cost -- which is
@@ -125,14 +125,16 @@ cd "${ViT_ROOT}"
 
 # factor:SP:iters:min_nodes, per the canonical FOM definition.
 #
-# min_nodes is a hard floor: SP ranks must exist, and SP=24 needs 2 Aurora
-# nodes. It is NOT a walltime floor. An earlier version set 32 here on the
-# theory that more nodes shorten the run; that was wrong. Ulysses pins
-# per-iteration time to the sequence length and SP, so adding nodes adds
-# data-parallel replicas (more samples per iteration) at identical wall
-# clock. factor=120 takes ~1106 s/iteration at 2 nodes and at 2048.
+# min_nodes is a hard floor: SP ranks must exist. It is NOT a walltime
+# floor. Ulysses pins per-iteration time to the sequence length and SP, so
+# adding nodes adds data-parallel replicas (more samples per iteration) at
+# identical wall clock. factor=120 takes ~1411 s/iteration at any node count.
 # Set FORCE_ALL=1 to ignore these floors.
-ALL_POINTS="16:1:40:1 24:1:40:1 32:1:40:1 64:4:20:1 120:24:20:2"
+#
+# factor=120 runs SP=12 so the 12-head model fits Ulysses (heads % SP == 0),
+# with activation recompute to fit memory: 27.7 GB peak per tile. The FOM
+# counts model FLOPs only, so recompute costs time, not credit.
+ALL_POINTS="16:1:40:1 24:1:40:1 32:1:40:1 64:4:20:1 120:12:20:1"
 # qsub -v cannot carry spaces, so submit_scaling_aurora.sh passes a subset
 # underscore-separated ("32_64"). Accept either form.
 FACTORS="${FACTORS//_/ }"
@@ -150,7 +152,7 @@ for point in ${ALL_POINTS}; do
 
     # Sequence parallelism splits one sequence across SP ranks, so the job
     # must have at least that many. Skip rather than fail: a 1-node job
-    # legitimately cannot run the SP=24 point.
+    # legitimately cannot host a point whose SP exceeds its 12 ranks.
     if (( sp > NRANKS )); then
         echo "--- SKIP factor=${f} (SP=${sp} needs ${sp} ranks, have ${NRANKS}) ---"
         continue
@@ -165,11 +167,23 @@ for point in ${ALL_POINTS}; do
         continue
     fi
 
-    log="${RESULTS_DIR}/vit_n${NNODES}_factor${f}_sp${sp}_rep${REP}.log"
-    echo "######## factor=${f}  seq=$((f*f*f))  SP=${sp}  iters=${iters} ########"
+    # 12 heads is the benchmark model. Ulysses needs heads % SP == 0, so a
+    # point whose SP does not divide 12 has to run more heads -- a different,
+    # slower model (see mds_launch.sh), tagged _h<heads> in its log name.
+    heads=12
+    (( 12 % sp != 0 )) && heads="${sp}"
+    htag=""
+    (( heads != 12 )) && htag="_h${heads}"
+
+    log="${RESULTS_DIR}/vit_n${NNODES}_factor${f}_sp${sp}${htag}_rep${REP}.log"
+    echo "######## factor=${f}  seq=$((f*f*f))  SP=${sp}  heads=${heads}  iters=${iters} ########"
     echo "         log: ${log}"
 
-    env factor="${f}" SP="${sp}" NUM_ITERS="${iters}" \
+    ckpt=0
+    (( f == 120 )) && ckpt=1
+
+    env factor="${f}" SP="${sp}" VIT_HEADS="${heads}" ACT_CKPT="${ckpt}" \
+        NUM_ITERS="${iters}" \
         bash "${ViT_ROOT}/mds_launch.sh" 2>&1 | tee "${log}"
     rc="${PIPESTATUS[0]}"
 
