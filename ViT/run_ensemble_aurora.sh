@@ -27,6 +27,9 @@
 # MEMBERS is a space-separated list of nodes:factor:iters. Each member gets
 # a disjoint slice of PBS_NODEFILE and its own log. The job ends when every
 # member has finished; one member failing does not stop the others.
+#
+# EXCLUDE_NODES="x4407c5s5b0n0" removes known-bad hosts first; ask for spare
+# nodes to cover them (e.g. select=257 for one 256-node member).
 
 cd "${PBS_O_WORKDIR}"
 
@@ -50,11 +53,25 @@ export ViT_ROOT
 source "${ENV_SH}"
 
 RANKS_PER_NODE=12
-NNODES_TOTAL=$(wc -l < "${PBS_NODEFILE}")
 mkdir -p "${RESULTS_DIR}"
 
 # MEMBERS may arrive underscore-separated: qsub -v cannot carry spaces.
 MEMBERS="${MEMBERS//_/ }"
+
+# EXCLUDE_NODES drops known-bad hosts (short names, e.g. x4407c5s5b0n0)
+# before the allocation is sliced. Request a spare node or two alongside it,
+# so members keep their full size whether or not a bad host was assigned.
+NODEFILE="${PBS_NODEFILE}"
+if [[ -n "${EXCLUDE_NODES:-}" ]]; then
+    EXCLUDE_NODES="${EXCLUDE_NODES//_/ }"
+    NODEFILE="${RESULTS_DIR}/nodefile_${PBS_JOBID%%.*}_usable"
+    awk -v bad="${EXCLUDE_NODES}" '
+        BEGIN { n = split(bad, b, " "); for (i = 1; i <= n; i++) skip[b[i]] = 1 }
+        { split($1, h, "."); if (!(h[1] in skip)) print }
+    ' "${PBS_NODEFILE}" > "${NODEFILE}"
+    echo "excluded: $(( $(wc -l < "${PBS_NODEFILE}") - $(wc -l < "${NODEFILE}") )) host(s) of ${EXCLUDE_NODES}"
+fi
+NNODES_TOTAL=$(wc -l < "${NODEFILE}")
 
 echo "=== ALCF-4 3D ViT ensemble ==="
 echo "=== allocation: ${NNODES_TOTAL} nodes  rep: ${REP} ==="
@@ -131,7 +148,7 @@ for m in ${MEMBERS}; do
 
     # Carve this member's own nodefile out of the allocation.
     slice="${SLICE_DIR}/member${member_idx}_n${n}_f${f}"
-    tail -n +$(( offset + 1 )) "${PBS_NODEFILE}" | head -n "${n}" > "${slice}"
+    tail -n +$(( offset + 1 )) "${NODEFILE}" | head -n "${n}" > "${slice}"
     offset=$(( offset + n ))
 
     log="${RESULTS_DIR}/vit_n${n}_factor${f}_sp${sp}${htag}_rep${REP}.log"
