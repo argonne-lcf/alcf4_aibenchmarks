@@ -414,6 +414,11 @@ x4713c5s7b0n0 x4713c6s0b0n0 x4713c6s1b0n0 x4713c6s2b0n0 x4713c7s5b0n0 \
 x4713c7s7b0n0 x4208c4s6b0n0 x4208c4s7b0n0 x4208c5s0b0n0 x4208c5s1b0n0"
 ```
 
+With them excluded, the 256-node factor-64 repetition 2 trained cleanly, and
+its grad norms matched repetition 1's to the third decimal (26.217 vs 26.216
+at iteration 10, 26.948 at iteration 20) — confirming that healthy nodes
+reproduce the same trajectory.
+
 To find suspects after a new collapse, intersect the collapsed members' node
 files in `results/nodefiles_<job>/` and remove every host that appears in a
 healthy member's file.
@@ -544,10 +549,11 @@ summed over all tiles):
 | 32 | 20,370.9 | 24,531.4 | 24,210.7 | 21,109.1 | pending |
 | 64 | 38,334.7 | 48,312.1 | 48,053.0 | 41,919.0 | pending |
 | 128 | 48,114.9 | 88,597.1 | 94,294.2 | 84,072.2 | pending |
-| 256 | 78,071.7 | 166,261.1 | 184,968.5 | 162,231.5 † | pending |
+| 256 | 78,071.7 | 166,261.1 | 184,968.5 | 164,382.9 | pending |
 
-† One repetition. The second is being re-run: its first attempt landed on
-x4407c5s5b0n0, and its second collapsed its fp16 loss scale (see
+The 256-node factor-64 repetition 2 took three attempts: the first landed on
+x4407c5s5b0n0, the second collapsed its fp16 loss scale, and the third ran
+with the suspect nodes excluded (see
 [Known issues](#nodes-that-break-fp16-training)).
 
 ### Weak-scaling efficiency
@@ -564,7 +570,7 @@ TFLOPS per tile at 1 node, and efficiency relative to it:
 | 32 | 84% | 95% | 97% | 98% |
 | 64 | 79% | 94% | 96% | 97% |
 | 128 | 50% | 86% | 94% | 97% |
-| 256 | 40% | 81% | 93% | 94% |
+| 256 | 40% | 81% | 93% | 95% |
 
 Iteration time at 1 node is 0.19 s (factor 16), 1.12 s (24), 5.2 s (32) and
 81 s (64). Efficiency tracks it: the longer an iteration, the more easily the
@@ -572,7 +578,7 @@ data-parallel gradient all-reduce of 308M parameters can hide behind compute.
 Factor 16 falls off sharply past 64 nodes. With 0.2 s iterations it is also
 the noisiest point — within-run spread of 30–74% at several node counts — so
 read its large-scale numbers as communication-bound and approximate. The
-long-sequence points, the ones the benchmark exists for, hold 93–94% at 256
+long-sequence points, the ones the benchmark exists for, hold 93–95% at 256
 nodes.
 
 ### Factor 120 (1.73M tokens)
