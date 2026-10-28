@@ -284,10 +284,11 @@ assigned. See [Known issues](#known-issues-on-aurora).
 ```
 
 ```
-log                                            iters   trained   exit  nan  problem
-vit_n256_factor32_sp1_rep1.log                 40/40       yes  clean    0
-vit_n256_factor64_sp4_rep1.log                 20/20       yes   hung    0
-vit_n256_factor64_sp4_rep2.log.gpufault-x4407c5s5b0n0    0/?         NO      -    0  GPU page fault on x4407c5s5b0n0 rank 578
+log                                            iters   trained   exit skip  nan  problem
+vit_n256_factor32_sp1_rep1.log                 40/40       yes  clean    0    0
+vit_n256_factor64_sp4_rep1.log                 20/20       yes   hung    0    0
+vit_n256_factor64_sp4_rep2.log.gpufault-x4407c5s5b0n0    0/?         NO      -    0    0  GPU page fault on x4407c5s5b0n0 rank 578
+vit_n256_factor64_sp4_rep2.log.lossscale       10/20        NO      -    5    0  fp16 loss scale collapsed
 
 GPU page faults by host (consider EXCLUDE_NODES):
         1 x4407c5s5b0n0
@@ -296,8 +297,10 @@ GPU page faults by host (consider EXCLUDE_NODES):
 **Judge a run by its log, not by the PBS exit status.** Runs often finish
 training and then fail to exit (see [Known issues](#known-issues-on-aurora));
 PBS then reports a failure over complete data. A run is good when it shows
-`trained yes` and `nan 0`; `hung` only means the timing data were complete
-before the process stalled.
+`trained yes`, `skip 0` and `nan 0`; `hung` only means the timing data were
+complete before the process stalled. `skip` counts optimizer steps skipped
+for fp16 overflow after warmup — two in the first five iterations are normal
+while the loss scale settles, any later one is not.
 
 ### 4. Summarize
 ```shell
@@ -310,7 +313,10 @@ about iteration 6 — and averages the rest. Repetitions are averaged together;
 `spread` is the worst within-repetition (max − min) / mean, so you can see when
 the warmup assumption or the system is noisy. Runs are keyed by
 (nodes, factor, SP, heads), and a weak-scaling series is never formed across
-different SP or head counts.
+different SP or head counts. A log with optimizer steps skipped after warmup
+is rejected and listed, never averaged: a skipped step is less work, so such
+a run reports a healthy-looking rate while not training (see
+[Correctness notes](#correctness-notes)).
 
 ### Alternatives to ensembles
 A single job running the sweep on all of its nodes:
@@ -376,6 +382,41 @@ still in service on 2026-10-27. Until it is repaired, pass
 `check_logs.sh` lists every host that produced a GPU page fault, so a new bad
 node shows up the same way: the same host and local rank across jobs is the
 signature of hardware, not code.
+
+### Nodes that break fp16 training
+Four runs never trained: from the first steps every gradient overflowed, the
+fp16 loss scale halved each step (4096 → 128 by iteration 5, 4 or 8 by
+iteration 10, where a healthy run settles at 1024 after two skips) and
+DeepSpeed stopped with
+`Exception: Current loss scale already at minimum - cannot decrease scale anymore`.
+Grad norm read 0.000 and no NaN iterations were logged; only the skipped-step
+count shows it. Iteration times were normal throughout.
+
+Model initialisation and the synthetic data use fixed seeds, so every
+repetition of a configuration should follow nearly the same loss curve —
+and the same configurations on other nodes trained cleanly, with no skipped
+steps after warmup. What the failing runs share is nodes:
+
+| runs that collapsed | nodes in common, and in no healthy run |
+| --- | --- |
+| 32-node factor 24 and factor 32 (24-head, two jobs) | x4318c2s3b0n0, x4614c4s1b0n0, x4614c4s2b0n0, x4713c5s2b0n0–x4713c5s7b0n0, x4713c6s0b0n0–x4713c6s2b0n0, x4713c7s5b0n0, x4713c7s7b0n0 |
+| 256-node factor 16 (24-head) and 256-node factor 64 rep 2 (12-head) | x4208c4s6b0n0, x4208c4s7b0n0, x4208c5s0b0n0, x4208c5s1b0n0 |
+
+A rank on a faulty device that produces inf or garbage gradients would do
+exactly this: the overflow check runs after the all-reduce, so one bad tile
+makes every rank skip, and no host is named. The evidence narrows the
+suspects to these 18 nodes but not to one each, so we exclude them all:
+
+```shell
+--exclude "x4407c5s5b0n0 x4318c2s3b0n0 x4614c4s1b0n0 x4614c4s2b0n0 \
+x4713c5s2b0n0 x4713c5s3b0n0 x4713c5s4b0n0 x4713c5s5b0n0 x4713c5s6b0n0 \
+x4713c5s7b0n0 x4713c6s0b0n0 x4713c6s1b0n0 x4713c6s2b0n0 x4713c7s5b0n0 \
+x4713c7s7b0n0 x4208c4s6b0n0 x4208c4s7b0n0 x4208c5s0b0n0 x4208c5s1b0n0"
+```
+
+To find suspects after a new collapse, intersect the collapsed members' node
+files in `results/nodefiles_<job>/` and remove every host that appears in a
+healthy member's file.
 
 ### Queue mechanics worth knowing
 - `small`, `medium` and `large` are `from_route_only`: submit to `prod` and
@@ -448,8 +489,12 @@ minimum, grad norm read 0.000, and every optimizer step was skipped; a
 benchmark that only times iterations would have recorded that as a good result.
 Worth noting the direction of the error: after the fix the same configuration
 reports *56.27* TFLOPS/tile. The broken run scored **higher**, because skipping
-optimizer steps is less work. This is why `check_logs.sh` reports NaN
-iterations next to the timings.
+optimizer steps is less work. This is why `check_logs.sh` reports skipped
+and NaN iterations next to the timings, and why `summarize_results.py`
+rejects any run with skipped steps after warmup. Watch `skip` rather than
+`nan`: a collapsing loss scale can skip every step while logging zero NaN
+iterations (see the node issue under
+[Known issues](#nodes-that-break-fp16-training)).
 
 The same line also broke `--bf16` outright: the table came back fp16 against a
 bf16 model, and `bf16 + fp16` promotes to fp32, so LayerNorm received fp32
@@ -499,10 +544,11 @@ summed over all tiles):
 | 32 | 20,370.9 | 24,531.4 | 24,210.7 | 21,109.1 | pending |
 | 64 | 38,334.7 | 48,312.1 | 48,053.0 | 41,919.0 | pending |
 | 128 | 48,114.9 | 88,597.1 | 94,294.2 | 84,072.2 | pending |
-| 256 | 78,071.7 | 166,261.1 | 184,934.4 † | 162,231.5 † | pending |
+| 256 | 78,071.7 | 166,261.1 | 184,968.5 | 162,231.5 † | pending |
 
-† One repetition; the second is being re-run (its first attempt landed on
-x4407c5s5b0n0).
+† One repetition. The second is being re-run: its first attempt landed on
+x4407c5s5b0n0, and its second collapsed its fp16 loss scale (see
+[Known issues](#nodes-that-break-fp16-training)).
 
 ### Weak-scaling efficiency
 

@@ -17,6 +17,11 @@ collective setup -- and are not representative. On Aurora the rate is flat
 from about iteration 6 onward, so the default discards the first 5. The
 reported spread makes it visible when that assumption does not hold for a
 configuration.
+
+A run that skipped optimizer steps after warmup is rejected outright. fp16
+overflow makes DeepSpeed skip the step, and a skipped step is less work, so
+such a run times as well as -- or better than -- a healthy one while not
+training at all.
 """
 import argparse
 import csv
@@ -31,6 +36,9 @@ ITER_RE = re.compile(
     r"iteration:(\d+)\s+time:([\d.]+)\s+TFLOPS:([\d.]+)\s+"
     r"TFLOPS_per_gpu:([\d.]+)\s+Samples/Sec:([\d.]+)"
 )
+# Megatron's interval line: " iteration 10/ 20 | ... | number of skipped
+# iterations: 0 | ...", the count covering the iterations since the last one.
+SKIP_RE = re.compile(r"^\s*iteration\s+(\d+)/\s*\d+\s+\|.*number of skipped iterations:\s+(\d+)")
 # vit_n128_factor32_sp1_rep1.log, or vit_n16_factor120_sp24_h24_rep1.log when
 # the run had to leave the 12-head benchmark model (see mds_launch.sh).
 NAME_RE = re.compile(r"vit_n(\d+)_factor(\d+)_sp(\d+)(?:_h(\d+))?_rep(\d+)\.log$")
@@ -38,9 +46,12 @@ NAME_RE = re.compile(r"vit_n(\d+)_factor(\d+)_sp(\d+)(?:_h(\d+))?_rep(\d+)\.log$
 RANKS_PER_NODE = 12
 
 
-def parse_log(path):
-    """Return (iteration, time, tflops, tflops_per_gpu, samples_per_sec) rows."""
+def parse_log(path, warmup):
+    """Return (rows, skipped): rows of (iteration, time, tflops,
+    tflops_per_gpu, samples_per_sec), and optimizer steps skipped after
+    warmup."""
     rows = []
+    skipped = 0
     with open(path, errors="replace") as fh:
         for line in fh:
             m = ITER_RE.search(line)
@@ -48,7 +59,10 @@ def parse_log(path):
                 rows.append((int(m.group(1)), float(m.group(2)),
                              float(m.group(3)), float(m.group(4)),
                              float(m.group(5))))
-    return rows
+            m = SKIP_RE.search(line)
+            if m and int(m.group(1)) > warmup:
+                skipped += int(m.group(2))
+    return rows, skipped
 
 
 def stats(values):
@@ -84,13 +98,17 @@ def main():
     # (nodes, factor, sp, heads) -> list of per-repetition summaries
     runs = defaultdict(list)
     incomplete = []
+    rejected = []
 
     for name in logs:
         m = NAME_RE.search(name)
         nodes, factor, sp, rep = (int(m.group(i)) for i in (1, 2, 3, 5))
         heads = int(m.group(4) or 12)
-        rows = parse_log(os.path.join(results_dir, name))
+        rows, skipped = parse_log(os.path.join(results_dir, name), args.warmup)
         kept = [r for r in rows if r[0] > args.warmup]
+        if skipped:
+            rejected.append((name, skipped))
+            continue
         if not kept:
             incomplete.append((name, len(rows)))
             continue
@@ -107,6 +125,12 @@ def main():
               f"(discarding first {args.warmup}):")
         for name, n in incomplete:
             print(f"  {name}  ({n} iteration line(s) found)")
+        print()
+    if rejected:
+        print("Rejected: optimizer steps skipped after warmup (fp16 overflow; "
+              "see check_logs.sh):")
+        for name, n in rejected:
+            print(f"  {name}  ({n} skipped)")
         print()
 
     # ---- per-configuration detail -------------------------------------

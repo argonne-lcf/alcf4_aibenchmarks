@@ -112,7 +112,9 @@ walltime_for() {
     printf '%02d:%02d:00\n' $(( secs / 3600 )) $(( (secs % 3600) / 60 ))
 }
 
-nexclude=$(wc -w <<< "${EXCLUDE}")
+read -ra ex <<< "${EXCLUDE}"
+EXCLUDE="${ex[*]}"
+nexclude=${#ex[@]}
 SELECT=$(( ALLOC + nexclude ))
 
 # small, medium and large are from_route_only: qsub refuses them directly
