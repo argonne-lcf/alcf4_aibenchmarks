@@ -55,23 +55,59 @@ tokens.
 
 ## Figure-of-merit (FOM)
 The detailed modeling and projection report is at: [ViT-Performance_Modeling.pdf](https://github.com/argonne-lcf/alcf4_aibenchmarks/blob/main/ViT/ViT_modeling_and_projection.pdf)
- ```math
- FOM = \frac{ b_sL(N^2 d+6 d^2 N)}{T}
+
+The FOM is model FLOPs per second of training step:
+
+```math
+FOM = \frac{3\left[\,L\left(4 b_s N^2 d + 8 b_s N d^2 + 4 b_s N d\, d_{ff}\right) + 2 b_s N p^2 c\, d\,\right]}{T}
 ```
 where
- ```math
-N = H.D.W / p^3
+```math
+N = H \cdot D \cdot W / p^3
 ```
 
 ```bash
-where b_s = global batch size
-      L = Number of layers
-      N = sequence length
-      H,D,W = height, width and depth of the input image.
-      p = patch size
-      d = hidden dimension of the model
-      T = Time to solution.
+where b_s  = global batch size (one sample per data-parallel group)
+      L    = number of layers                  (14)
+      N    = sequence length, tokens           (factor^3; no class token)
+      H,D,W = height, depth and width of the input volume
+      p    = patch edge length                 (16)
+      c    = input channels                    (1)
+      d    = hidden dimension                  (1536)
+      d_ff = FFN hidden dimension              (4096)
+      T    = time of one training step, steady state
 ```
+
+The four terms per layer are attention (`QKᵀ` and `·V`), the Q/K/V/O
+projections, the two MLP GEMMs, and the patch embedding; the leading 3 is
+forward plus a backward of twice the forward, and every multiply-add counts as
+2 FLOPs. **This is exactly what the code measures**
+(`num_floating_point_operations` in `megatron/training.py`), and
+`summarize_results.py` reads the FOM the code prints, so every number in this
+README is this formula.
+
+Earlier versions of this README gave `b_s L (N²d + 6d²N) / T`, and the
+modeling report's eq. 27 gives `b_s L N² d / T`. Both are simplifications of
+the same count, not different metrics: with `d_ff = 4d` the README formula is
+exactly 1/12 of the code's (constants dropped), and eq. 27 is its attention
+term alone, the `N ≫ d` limit. Neither is a drop-in for the measured number:
+
+| factor | tokens | attention share of FLOPs | code ÷ (12 × old README formula) | code ÷ (12 × eq. 27) |
+| ---: | ---: | ---: | ---: | ---: |
+| 16 | 4,096 | 36% | 0.847 | 2.75 |
+| 24 | 13,824 | 66% | 0.912 | 1.52 |
+| 32 | 32,768 | 82% | 0.951 | 1.22 |
+| 64 | 262,144 | 97% | 0.992 | 1.03 |
+| 120 | 1,728,000 | 99.6% | 0.999 | 1.004 |
+
+The old formula overcounts by 18% at factor 16 because it assumes
+`d_ff = 4d = 6144`; this model's FFN is 4096. At the long-sequence points
+attention dominates and all three agree to within a few percent.
+
+One known imprecision, left as is so results stay comparable: the embedding
+term uses `p²` where a 3D patch has `p³` voxels (the code comes from the 2D
+ViT). Counting `p³` would raise the FLOP count by 1.2% at factor 16 and by
+under 0.1% from factor 64 up.
 
 The run configuration is fixed by `alcf4_bench_polaris.sh` in the submodule,
 which is the canonical ALCF-4 definition: `VIT="315M"` (14 layers, hidden 1536,
@@ -534,6 +570,10 @@ Measured on `frameworks/2026.1.0`, 12 ranks per node (6 PVC GPUs x 2 tiles),
 positional-encoding fix applied. Weak-scaling numbers are the mean of two
 repetitions run as ensembles (October 2026), first 5 iterations discarded.
 
+**Scale covered: 1 to 256 nodes** (3,072 tiles, about 2.4% of Aurora's
+10,624 nodes). Nothing here says how the FOM behaves at system scale; see
+[Open questions](#how-the-fom-relates-to-system-scale).
+
 ### FOM by node count
 
 Aggregate FOM in TFLOPS (the numerator of the FOM formula over measured time,
@@ -624,6 +664,141 @@ canonical definition:
 | bf16 | 86.6 | 52.56 | 3.40 | 24.8 | 0 | 0 |
 
 bf16 remains available via `-v bf16=1` on the smoke test.
+
+## Open questions — proposed for review
+
+Not yet part of the benchmark definition. Each is written up here so the
+benchmark owners can decide before this is merged; the measurements behind
+them are real, the rules are proposals.
+
+### A correctness gate
+
+**Problem.** Nothing in the current definition checks that a run computed the
+right thing. The FOM is FLOPs over time, and the FLOP count comes from the
+model's shape, not from what ran, so a run that skips work scores *higher*.
+This has already happened twice on Aurora — the fp16 positional-encoding NaN
+and the [nodes that break fp16 training](#nodes-that-break-fp16-training) —
+and both times the run timed normally. `check_logs.sh` and
+`summarize_results.py` now reject skipped steps, but that is a symptom check
+specific to fp16 loss scaling. A vendor with different kernels, a different
+precision path or a bug that silently drops work would pass it.
+
+**Proposal.** A run counts only if its final-iteration `loss` and `grad norm`
+(Megatron's interval line, e.g.
+`iteration 40/ 40 | ... | loss: 3.747571E+00 | ... | grad norm: 29.262 | ...`)
+match a published reference for the same configuration within a tolerance.
+The data are random, with 20 random labels, so the model cannot learn and
+there is no convergence target. The gate tests that the same arithmetic was
+done, not that the model trains.
+
+**What the Aurora runs show.** Two repetitions at the same layout agree
+closely: across all 36 pairs (factors 16–64, 1–256 nodes) the worst
+disagreement is 9.0e-5 relative in loss and 5.3e-4 in grad norm, both at
+factor 64 on one node. Final values (mean of the two reps, `loss / grad norm`):
+
+| nodes | global batch (SP=1) | factor 16 | factor 24 | factor 32 | factor 64 (SP=4) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 12 | 3.7475 / 29.26 | 2.8739 / 28.71 | 3.6098 / 28.97 | 3.6643 / 30.14 |
+| 2 | 24 | 3.7754 / 29.17 | 2.8693 / 28.68 | 3.5928 / 28.82 | 3.5468 / 28.46 |
+| 4 | 48 | 3.7537 / 20.50 | 2.8181 / 20.05 | 3.5857 / 20.25 | 3.5567 / 27.61 |
+| 8 | 96 | 3.7563 / 29.08 | 2.8557 / 28.58 | 3.5958 / 28.78 | 3.5842 / 27.45 |
+| 16 | 192 | 3.7557 / 21.86 | 2.8308 / 21.49 | 3.5931 / 21.54 | 3.5951 / 27.09 |
+| 32 | 384 | 3.7561 / 29.06 | 2.8595 / 28.56 | 3.5952 / 28.77 | 3.5888 / 27.07 |
+| 64 | 768 | 3.7543 / 29.06 | 2.8615 / 28.59 | 3.5940 / 28.79 | 3.5752 / 26.96 |
+| 128 | 1536 | 3.7540 / 29.07 | 2.8625 / 28.61 | 3.5930 / 28.79 | 3.5741 / 26.95 |
+| 256 | 3072 | 3.7521 / 29.07 | 2.8626 / 28.60 | 3.5945 / 28.79 | 3.5669 / 26.95 |
+
+(Factor 64's global batch is a quarter of the column shown, `nodes × 3`.)
+
+**Why this cannot be adopted as is.** The values are reproducible but
+layout-dependent, so a vendor cannot yet be compared against them:
+
+1. *The data depend on the process layout.* Each data-parallel rank seeds its
+   images with `1234 + step × 1000003 + dp_rank`, and labels are drawn on each
+   group's source rank. A vendor with a different number of ranks per node, a
+   different SP degree or a different rank order generates different samples
+   at the same global batch and cannot reproduce these numbers even with
+   perfect arithmetic. **Needed first:** seed each sample from its global
+   sample index, so the data depend only on which samples are in the batch.
+   That is a change to the fork's `pretrain_vision_classify.py`, and the
+   references above would need regenerating.
+2. *The values change with global batch*, which weak scaling grows with the
+   node count. References therefore have to be keyed by global batch, or the
+   gate run fixed at one global batch (for example 12 samples, reachable on
+   any system through gradient accumulation) separate from the timed sweep.
+3. *The tolerance decides whether bf16 is allowed.* At factor 64 on one node,
+   bf16 ends at loss 3.40 against fp16's 3.71 (8% apart). A tolerance tight
+   enough to catch real errors excludes bf16; one loose enough for bf16 is
+   loose enough to hide a lot. A starting point for fp16: loss within 1e-3
+   relative and grad norm within 0.5%, about ten times the rep-to-rep spread
+   to leave room for different kernels and reduction orders. That margin is
+   a guess; only a second implementation can calibrate it.
+4. *An unexplained pattern.* At SP=1 the grad norm is ~20–22 at 4 and 16
+   nodes and ~29 at every other node count, for all three short factors,
+   reproducibly. Factor 64 at the same global batches does not show it. It
+   is presumably a property of which samples those layouts draw, but nobody
+   has confirmed that. It should be understood, or disappear with item 1,
+   before a gate relies on these numbers.
+
+**Decisions needed:** adopt a gate at all; final loss and grad norm, or the
+full trajectory; the tolerance, and with it bf16's status; whether to fix
+the seeding in the fork.
+
+### Combining the five sequence points
+
+**Problem.** The benchmark measures five sequence lengths, and nothing says
+how they become the one number a vendor reports. The modeling report defines
+the FOM per run and is silent on this. The points differ by about 65,000x in
+FLOPs per sample and by up to ~7,400x in time per iteration, while their
+per-tile rates are similar (45–67 TFLOPS/tile on Aurora), so the choice
+matters.
+
+**Options:**
+
+| option | for | against |
+| --- | --- | --- |
+| Report all five; no single number | nothing hidden; each point stresses something different (factor 16 the gradient all-reduce, factor 120 sequence parallelism and memory) | comparing vendors needs a judgment call per point |
+| Geometric mean of each point's FOM ÷ Aurora's | the usual way to combine benchmark speedups; every point counts equally regardless of its FLOP count; scale-free | weights factor 16 — the least characteristic and noisiest point — the same as factor 120 |
+| Weighted geometric mean, heavier on factors 64 and 120 | matches the benchmark's stated purpose, long sequences | the weights are arbitrary and invite argument |
+| Total FLOPs ÷ total time across all five | one honest aggregate rate | within about 1% of factor 120's FOM alone (one node: 5.54 vs 5.48 × 10¹⁴ FLOP/s); the other four stop mattering |
+
+A lean, for discussion: report all five, and give the geometric mean of
+speedups over Aurora as the headline, so that a vendor who is fast at short
+sequences and slow at long ones cannot hide it. That needs the Aurora
+reference fixed at a definite node count per point — which runs into the
+next question.
+
+**Decisions needed:** which option; if a mean, the weights; the node count
+(or scale) the reference FOM is taken at.
+
+### How the FOM relates to system scale
+
+**Problem.** The FOM is a rate at whatever node count it was measured, and
+weak scaling grows the global batch with the job (`nodes × 12 / SP`). These
+results stop at 256 nodes. Two things follow:
+
+- The FOM does not compare system-scale problem sizes. Two systems' FOMs at
+  256 nodes say nothing about how each behaves across the full machine, and
+  quoting a full-system FOM means a full-system run.
+- Taken to system scale, weak scaling stops describing real training. At
+  full Aurora, factor 16 would train with a global batch of ~127,000
+  samples, far beyond what anyone would use for a 315M-parameter model. The
+  efficiency curve would keep measuring something; it would no longer be
+  something users do.
+
+**An idea, unresolved:** state the system-level FOM as how many models the
+system can train at once, at this benchmark's per-model rate. Each model
+keeps a realistic size — one sample per SP group, a global batch the user
+would pick — and the system is filled with copies, as the
+[ensembles](#2-the-weak-scaling-series-ensembles) used here already do. That
+measures capacity, which is how many ALCF users would run this workload, and
+it stays meaningful at full scale where a single weak-scaled job does not. It
+also leaves open how to treat factor 120, which needs 12 tiles per sample
+and is closer to a capability measurement than a capacity one.
+
+**Decisions needed:** whether the reported FOM should be a single-job rate at
+a stated scale, a system capacity, or both; and if capacity, how a model's
+size and global batch are fixed.
 
 ## Link to prior experimental results
 https://argonnedoe-my.sharepoint.com/:x:/r/personal/vsastry_anl_gov/Documents/3D_ViT_benchmarks_experiments.xlsx?d=w697311c7877e492ca135d882927524a7&csf=1&web=1&e=QpfU9s
