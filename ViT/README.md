@@ -171,7 +171,9 @@ This is what decides the SP choice at factor 120. Ulysses shards heads across
 the SP group and asserts `num_attention_heads % SP == 0`, so SP must divide
 12. `alcf4_bench_polaris.sh` asks for SP=24 with 12 heads, which cannot be
 built as written. Aurora runs the point at **SP=12** — one node's 12 tiles —
-which needs activation recompute to fit: 27.7 GiB peak per tile with it.
+which needs activation recompute to fit: with it, rank 0 peaks at 27.6 GiB
+reserved per tile from 4 nodes up and 40.9 GiB on 1–2 nodes (see
+[Factor 120](#factor-120-173m-tokens)).
 
 ### Recompute is not credited
 The FOM counts model FLOPs only. Recompute repeats forward work, which costs
@@ -187,8 +189,8 @@ Report the second. `summarize_results.py` reads only that line. At factor 120
 the difference is 25%: an implementation that avoided recompute — selective
 recompute, a different SP layout, more memory per device — and kept the same
 per-FLOP rate would approach ~61 TFLOPS/tile rather than 45.7. That headroom
-is the vendor's to take; the 27.7 GiB peak leaves 36 GiB of each 64 GiB tile
-unused.
+is the vendor's to take: even the 40.9 GiB worst-case peak leaves 23 GiB of
+each 64 GiB tile unused.
 
 ## Environment
 Aurora's `frameworks/2026.1.0` module supplies the whole stack; **no venv is
@@ -581,15 +583,15 @@ summed over all tiles):
 
 | nodes | factor 16 (4K) | factor 24 (13.8K) | factor 32 (32.8K) | factor 64 (262K) | factor 120 (1.73M) |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 755.1 | 803.2 | 780.6 | 675.5 | pending |
-| 2 | 1,403.8 | 1,582.3 | 1,542.6 | 1,335.7 | pending |
-| 4 | 2,719.6 | 3,153.0 | 3,046.2 | 2,676.8 | pending |
-| 8 | 5,272.2 | 6,191.2 | 6,126.1 | 5,324.0 | pending |
-| 16 | 10,530.5 | 12,379.2 | 12,262.0 | 10,618.9 | pending |
-| 32 | 20,370.9 | 24,531.4 | 24,210.7 | 21,109.1 | pending |
-| 64 | 38,334.7 | 48,312.1 | 48,053.0 | 41,919.0 | pending |
-| 128 | 48,114.9 | 88,597.1 | 94,294.2 | 84,072.2 | pending |
-| 256 | 78,071.7 | 166,261.1 | 184,968.5 | 164,382.9 | pending |
+| 1 | 755.1 | 803.2 | 780.6 | 675.5 | 539.0 |
+| 2 | 1,403.8 | 1,582.3 | 1,542.6 | 1,335.7 | 1,082.2 |
+| 4 | 2,719.6 | 3,153.0 | 3,046.2 | 2,676.8 | 2,131.2 |
+| 8 | 5,272.2 | 6,191.2 | 6,126.1 | 5,324.0 | 4,305.8 |
+| 16 | 10,530.5 | 12,379.2 | 12,262.0 | 10,618.9 | 8,583.5 |
+| 32 | 20,370.9 | 24,531.4 | 24,210.7 | 21,109.1 | 17,092.9 |
+| 64 | 38,334.7 | 48,312.1 | 48,053.0 | 41,919.0 | 33,980.0 |
+| 128 | 48,114.9 | 88,597.1 | 94,294.2 | 84,072.2 | 68,052.2 |
+| 256 | 78,071.7 | 166,261.1 | 184,968.5 | 164,382.9 | 133,736.6 |
 
 The 256-node factor-64 repetition 2 took three attempts: the first landed on
 x4407c5s5b0n0, the second collapsed its fp16 loss scale, and the third ran
@@ -600,34 +602,46 @@ with the suspect nodes excluded (see
 
 TFLOPS per tile at 1 node, and efficiency relative to it:
 
-| nodes | factor 16 | factor 24 | factor 32 | factor 64 |
-| ---: | ---: | ---: | ---: | ---: |
-| 1 (TFLOPS/tile) | 62.9 | 66.9 | 65.1 | 56.3 |
-| 2 | 93% | 99% | 99% | 99% |
-| 4 | 90% | 98% | 98% | 99% |
-| 8 | 87% | 96% | 98% | 99% |
-| 16 | 87% | 96% | 98% | 98% |
-| 32 | 84% | 95% | 97% | 98% |
-| 64 | 79% | 94% | 96% | 97% |
-| 128 | 50% | 86% | 94% | 97% |
-| 256 | 40% | 81% | 93% | 95% |
+| nodes | factor 16 | factor 24 | factor 32 | factor 64 | factor 120 |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 (TFLOPS/tile) | 62.9 | 66.9 | 65.1 | 56.3 | 44.9 |
+| 2 | 93% | 99% | 99% | 99% | 100% |
+| 4 | 90% | 98% | 98% | 99% | 99% |
+| 8 | 87% | 96% | 98% | 99% | 100% |
+| 16 | 87% | 96% | 98% | 98% | 100% |
+| 32 | 84% | 95% | 97% | 98% | 99% |
+| 64 | 79% | 94% | 96% | 97% | 98% |
+| 128 | 50% | 86% | 94% | 97% | 99% |
+| 256 | 40% | 81% | 93% | 95% | 97% |
 
-Iteration time at 1 node is 0.19 s (factor 16), 1.12 s (24), 5.2 s (32) and
-81 s (64). Efficiency tracks it: the longer an iteration, the more easily the
-data-parallel gradient all-reduce of 308M parameters can hide behind compute.
-Factor 16 falls off sharply past 64 nodes. With 0.2 s iterations it is also
-the noisiest point — within-run spread of 30–74% at several node counts — so
-read its large-scale numbers as communication-bound and approximate. The
-long-sequence points, the ones the benchmark exists for, hold 93–95% at 256
-nodes.
+Iteration time at 1 node is 0.19 s (factor 16), 1.12 s (24), 5.2 s (32),
+81 s (64) and 1435 s (120). Efficiency tracks it: the longer an iteration, the
+more easily the data-parallel gradient all-reduce of 308M parameters can hide
+behind compute. Factor 16 falls off sharply past 64 nodes. With 0.2 s
+iterations it is also the noisiest point — within-run spread of 30–74% at
+several node counts — so read its large-scale numbers as communication-bound
+and approximate. The long-sequence points, the ones the benchmark exists for,
+hold 93–97% at 256 nodes.
 
 ### Factor 120 (1.73M tokens)
 
-At SP=12 with activation recompute, one node runs one sample in **1411 s per
-iteration**, a FOM of **548.3 TFLOPS/node (45.7 TFLOPS/tile)**, with a
-27.7 GiB peak per tile (single-iteration measurement). The full 1→256-node
-curve, two repetitions, is queued as two 512-node ensembles; this section will
-hold it.
+At SP=12 with activation recompute, one node runs one sample in **1435 s per
+iteration**, a FOM of **539.0 TFLOPS/node (44.9 TFLOPS/tile)**. Each sample
+lives on one node's 12 tiles, so the only traffic between nodes is the
+gradient all-reduce, once every ~24 minutes; weak scaling holds 97% at
+256 nodes. Within-run spread is under 1.3% at every node count, and all 18
+runs (2 repetitions × 9 node counts) trained with no skipped steps and exited
+cleanly. Each 512-node ensemble took about 8 h 20 min.
+
+**Memory.** Megatron logs `torch.xpu.max_memory_reserved` on rank 0. From
+4 nodes up it holds at 27.6 GiB for all 20 iterations. On 1 and 2 nodes it is
+27.7 GiB for the first three iterations, then 40.9 GiB from iteration 4 on, in
+both repetitions. The jump comes after the warmup steps that the fp16 loss
+scaler skips, so the first real optimizer step is the likely trigger, and
+ZeRO-1 shards optimizer state across only 1 or 2 data-parallel ranks there.
+That has not been confirmed, and it does not fully explain why 2 nodes look
+like 1 rather than half-way to 4. Either way, budget for 41 GiB per tile, not
+the 27.7 GiB a single-iteration test shows.
 
 For reference only — not the benchmark model — the earlier 24-head
 configuration at SP=24 (two nodes per sample, no recompute) ran
@@ -692,23 +706,24 @@ there is no convergence target. The gate tests that the same arithmetic was
 done, not that the model trains.
 
 **What the Aurora runs show.** Two repetitions at the same layout agree
-closely: across all 36 pairs (factors 16–64, 1–256 nodes) the worst
-disagreement is 9.0e-5 relative in loss and 5.3e-4 in grad norm, both at
-factor 64 on one node. Final values (mean of the two reps, `loss / grad norm`):
+closely: across all 45 pairs (all five factors, 1–256 nodes) the worst
+disagreement is 1.5e-4 relative in loss and 6.2e-4 in grad norm, both at
+factor 120 on one node. Final values (mean of the two reps, `loss / grad norm`):
 
-| nodes | global batch (SP=1) | factor 16 | factor 24 | factor 32 | factor 64 (SP=4) |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | 12 | 3.7475 / 29.26 | 2.8739 / 28.71 | 3.6098 / 28.97 | 3.6643 / 30.14 |
-| 2 | 24 | 3.7754 / 29.17 | 2.8693 / 28.68 | 3.5928 / 28.82 | 3.5468 / 28.46 |
-| 4 | 48 | 3.7537 / 20.50 | 2.8181 / 20.05 | 3.5857 / 20.25 | 3.5567 / 27.61 |
-| 8 | 96 | 3.7563 / 29.08 | 2.8557 / 28.58 | 3.5958 / 28.78 | 3.5842 / 27.45 |
-| 16 | 192 | 3.7557 / 21.86 | 2.8308 / 21.49 | 3.5931 / 21.54 | 3.5951 / 27.09 |
-| 32 | 384 | 3.7561 / 29.06 | 2.8595 / 28.56 | 3.5952 / 28.77 | 3.5888 / 27.07 |
-| 64 | 768 | 3.7543 / 29.06 | 2.8615 / 28.59 | 3.5940 / 28.79 | 3.5752 / 26.96 |
-| 128 | 1536 | 3.7540 / 29.07 | 2.8625 / 28.61 | 3.5930 / 28.79 | 3.5741 / 26.95 |
-| 256 | 3072 | 3.7521 / 29.07 | 2.8626 / 28.60 | 3.5945 / 28.79 | 3.5669 / 26.95 |
+| nodes | global batch (SP=1) | factor 16 | factor 24 | factor 32 | factor 64 (SP=4) | factor 120 (SP=12) |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 12 | 3.7475 / 29.26 | 2.8739 / 28.71 | 3.6098 / 28.97 | 3.6643 / 30.14 | 3.2578 / 30.56 |
+| 2 | 24 | 3.7754 / 29.17 | 2.8693 / 28.68 | 3.5928 / 28.82 | 3.5468 / 28.46 | 3.3717 / 27.25 |
+| 4 | 48 | 3.7537 / 20.50 | 2.8181 / 20.05 | 3.5857 / 20.25 | 3.5567 / 27.61 | 3.3880 / 25.34 |
+| 8 | 96 | 3.7563 / 29.08 | 2.8557 / 28.58 | 3.5958 / 28.78 | 3.5842 / 27.45 | 3.3770 / 24.55 |
+| 16 | 192 | 3.7557 / 21.86 | 2.8308 / 21.49 | 3.5931 / 21.54 | 3.5951 / 27.09 | 3.3762 / 24.15 |
+| 32 | 384 | 3.7561 / 29.06 | 2.8595 / 28.56 | 3.5952 / 28.77 | 3.5888 / 27.07 | 3.3819 / 23.94 |
+| 64 | 768 | 3.7543 / 29.06 | 2.8615 / 28.59 | 3.5940 / 28.79 | 3.5752 / 26.96 | 3.3619 / 23.79 |
+| 128 | 1536 | 3.7540 / 29.07 | 2.8625 / 28.61 | 3.5930 / 28.79 | 3.5741 / 26.95 | 3.3468 / 23.71 |
+| 256 | 3072 | 3.7521 / 29.07 | 2.8626 / 28.60 | 3.5945 / 28.79 | 3.5669 / 26.95 | 3.3495 / 23.70 |
 
-(Factor 64's global batch is a quarter of the column shown, `nodes × 3`.)
+(The global batch is `nodes × 12 / SP`: a quarter of the column shown for
+factor 64, a twelfth for factor 120.)
 
 **Why this cannot be adopted as is.** The values are reproducible but
 layout-dependent, so a vendor cannot yet be compared against them:
@@ -730,12 +745,14 @@ layout-dependent, so a vendor cannot yet be compared against them:
    bf16 ends at loss 3.40 against fp16's 3.71 (8% apart). A tolerance tight
    enough to catch real errors excludes bf16; one loose enough for bf16 is
    loose enough to hide a lot. A starting point for fp16: loss within 1e-3
-   relative and grad norm within 0.5%, about ten times the rep-to-rep spread
+   relative and grad norm within 0.5%, seven to eight times the worst
+   rep-to-rep spread,
    to leave room for different kernels and reduction orders. That margin is
    a guess; only a second implementation can calibrate it.
 4. *An unexplained pattern.* At SP=1 the grad norm is ~20–22 at 4 and 16
    nodes and ~29 at every other node count, for all three short factors,
-   reproducibly. Factor 64 at the same global batches does not show it. It
+   reproducibly. Factors 64 and 120, which run at SP > 1, do not show it;
+   their grad norm falls smoothly with node count. It
    is presumably a property of which samples those layouts draw, but nobody
    has confirmed that. It should be understood, or disappear with item 1,
    before a gate relies on these numbers.
@@ -749,8 +766,8 @@ the seeding in the fork.
 **Problem.** The benchmark measures five sequence lengths, and nothing says
 how they become the one number a vendor reports. The modeling report defines
 the FOM per run and is silent on this. The points differ by about 65,000x in
-FLOPs per sample and by up to ~7,400x in time per iteration, while their
-per-tile rates are similar (45–67 TFLOPS/tile on Aurora), so the choice
+FLOPs per sample and by up to ~7,500x in time per iteration, while their
+per-tile rates are similar (44.9–66.9 TFLOPS/tile at one node on Aurora), so the choice
 matters.
 
 **Options:**
@@ -760,7 +777,7 @@ matters.
 | Report all five; no single number | nothing hidden; each point stresses something different (factor 16 the gradient all-reduce, factor 120 sequence parallelism and memory) | comparing vendors needs a judgment call per point |
 | Geometric mean of each point's FOM ÷ Aurora's | the usual way to combine benchmark speedups; every point counts equally regardless of its FLOP count; scale-free | weights factor 16 — the least characteristic and noisiest point — the same as factor 120 |
 | Weighted geometric mean, heavier on factors 64 and 120 | matches the benchmark's stated purpose, long sequences | the weights are arbitrary and invite argument |
-| Total FLOPs ÷ total time across all five | one honest aggregate rate | within about 1% of factor 120's FOM alone (one node: 5.54 vs 5.48 × 10¹⁴ FLOP/s); the other four stop mattering |
+| Total FLOPs ÷ total time across all five | one honest aggregate rate | within 2% of factor 120's FOM alone (one node, one iteration of each: 547 vs 539 TFLOPS); the other four stop mattering |
 
 A lean, for discussion: report all five, and give the geometric mean of
 speedups over Aurora as the headline, so that a vendor who is fast at short
