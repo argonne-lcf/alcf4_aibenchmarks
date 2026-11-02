@@ -19,34 +19,25 @@ ssh <username>@aurora.alcf.anl.gov
 
 2. Setup new virtual environment and install vLLM
 
-```bash linenums="1" title="Install vLLM using pre-built wheels"
+```bash linenums="1" title="Load frameworks module to set up vLLM for Inference"
 module load frameworks
-conda create --name vllm python=3.10 -y
-conda activate vllm
-
-module unload oneapi/eng-compiler/2024.07.30.002
-module use /opt/aurora/24.180.3/spack/unified/0.8.0/install/modulefiles/oneapi/2024.07.30.002
-module use /soft/preview/pe/24.347.0-RC2/modulefiles
-module add oneapi/release
-
-pip install /flare/datasets/softwares/vllm-install/wheels/*
-pip install /flare/datasets/softwares/vllm-install/vllm-0.6.6.post2.dev28+g5dbf8545.d20250129.xpu-py3-none-any.whl
 ```
 
 ## Access Model Weights
 
 Model weights for commonly used open-weight models are downloaded and available in the following directory on Aurora:
 ```bash linenums="1"
-/flare/datascience/model-weights/hub
+/flare/datasets/model-weights
 ```
 
 To ensure your workflows utilize the preloaded model weights and datasets, update the following environment variables in your session. Some models hosted on Hugging Face may be gated, requiring additional authentication. 
 
 To access these gated models, you will need a [Hugging Face authentication token](https://huggingface.co/docs/hub/en/security-tokens).
 ```bash linenums="1"
-export HF_HOME="/flare/datascience/model-weights/hub"
-export HF_DATASETS_CACHE="/flare/datascience/model-weights/hub"
 export HF_TOKEN="YOUR_HF_TOKEN"
+export HF_HOME="/flare/datasets/model-weights"
+export HF_DATASETS_CACHE="/flare/datasets/model-weights"
+export HF_MODULES_CACHE="/flare/datasets/model-weights"
 export RAY_TMPDIR="/tmp"
 export TMPDIR="/tmp"
 ```
